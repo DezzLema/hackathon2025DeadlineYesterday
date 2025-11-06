@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 import logging
 
+
 class UlstuParser:
     def __init__(self):
         self.session = requests.Session()
@@ -137,7 +138,7 @@ class UlstuParser:
             return "ИВТИИбд-32", "1", self._create_test_schedule()
 
     def _parse_cell_content(self, cell_text):
-        """Парсит содержимое ячейки с занятием"""
+        """Парсит содержимое ячейки с занятием - ОБНОВЛЕННАЯ ВЕРСИЯ для аудиторий"""
         try:
             lines = [line.strip() for line in cell_text.split('\n') if line.strip()]
 
@@ -171,20 +172,51 @@ class UlstuParser:
             teacher = "Не указан"
             classroom = "Не указана"
 
+            # ОБНОВЛЕННЫЙ ПАРСИНГ: ищем формат "Фамилия И О номер_аудитории"
             if len(lines) > 1:
                 teacher_line = lines[1]
-                # Ищем аудиторию
-                classroom_match = re.search(r'ауд\.?\s*([^\s,\n]+)', teacher_line, re.IGNORECASE)
-                if classroom_match:
-                    classroom = f"ауд. {classroom_match.group(1)}"
-                    teacher = re.sub(r'ауд\.?\s*[^\s,\n]+', '', teacher_line, flags=re.IGNORECASE).strip()
-                else:
-                    teacher = teacher_line
 
-            if len(lines) > 2:
-                # Третья строка может быть аудиторией или продолжением
+                # Паттерн для поиска формата "Фамилия И О номер_аудитории"
+                # Пример: "Лапшов Ю А 3-312"
+                classroom_pattern = r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+([А-ЯЁ]\s+[А-ЯЁ])\s+([\d\-]+)$'
+                classroom_match = re.search(classroom_pattern, teacher_line)
+
+                if classroom_match:
+                    # Нашли формат с аудиторией в конце
+                    teacher_name = classroom_match.group(1)  # Фамилия
+                    initials = classroom_match.group(2)  # Инициалы
+                    room_number = classroom_match.group(3)  # Номер аудитории
+
+                    teacher = f"{teacher_name} {initials}"
+                    classroom = f"ауд. {room_number}"
+
+                    logging.info(f"🎯 Найдена аудитория в формате ФИО+аудитория: {teacher} -> {classroom}")
+
+                else:
+                    # Старый метод поиска аудитории
+                    old_classroom_match = re.search(r'ауд\.?\s*([^\s,\n]+)', teacher_line, re.IGNORECASE)
+                    if old_classroom_match:
+                        classroom = f"ауд. {old_classroom_match.group(1)}"
+                        teacher = re.sub(r'ауд\.?\s*[^\s,\n]+', '', teacher_line, flags=re.IGNORECASE).strip()
+                    else:
+                        teacher = teacher_line
+
+            # Дополнительная проверка в третьей строке
+            if len(lines) > 2 and classroom == "Не указана":
                 third_line = lines[2]
-                if 'ауд.' in third_line.lower() and classroom == "Не указана":
+                # Проверяем формат "Фамилия И О номер_аудитории" в третьей строке
+                classroom_pattern = r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+([А-ЯЁ]\s+[А-ЯЁ])\s+([\d\-]+)$'
+                classroom_match = re.search(classroom_pattern, third_line)
+
+                if classroom_match:
+                    teacher_name = classroom_match.group(1)
+                    initials = classroom_match.group(2)
+                    room_number = classroom_match.group(3)
+
+                    teacher = f"{teacher_name} {initials}"
+                    classroom = f"ауд. {room_number}"
+                    logging.info(f"🎯 Найдена аудитория в 3-й строке: {teacher} -> {classroom}")
+                elif 'ауд.' in third_line.lower():
                     classroom = third_line
 
             return {
@@ -207,8 +239,8 @@ class UlstuParser:
                 'pair': 1,
                 'subject': 'Математика',
                 'type': 'Лекция',
-                'teacher': 'Иванов И.И.',
-                'classroom': 'ауд. 101'
+                'teacher': 'Лапшов Ю А',
+                'classroom': 'ауд. 3-312'
             },
             {
                 'week': 1,
@@ -216,8 +248,8 @@ class UlstuParser:
                 'pair': 3,
                 'subject': 'Программирование',
                 'type': 'Практика',
-                'teacher': 'Петров П.П.',
-                'classroom': 'ауд. 205'
+                'teacher': 'Иванов И И',
+                'classroom': 'ауд. 4-215'
             },
             {
                 'week': 1,
@@ -225,8 +257,8 @@ class UlstuParser:
                 'pair': 2,
                 'subject': 'Физика',
                 'type': 'Лекция',
-                'teacher': 'Сидоров С.С.',
-                'classroom': 'ауд. 301'
+                'teacher': 'Петров П П 2-101',
+                'classroom': 'ауд. 2-101'
             },
             {
                 'week': 1,
@@ -234,26 +266,8 @@ class UlstuParser:
                 'pair': 4,
                 'subject': 'Базы данных',
                 'type': 'Лабораторная',
-                'teacher': 'Кузнецов К.К.',
-                'classroom': 'ауд. 410'
-            },
-            {
-                'week': 1,
-                'day': 'Чт',
-                'pair': 1,
-                'subject': 'Веб-разработка',
-                'type': 'Практика',
-                'teacher': 'Смирнов С.С.',
-                'classroom': 'ауд. 315'
-            },
-            {
-                'week': 1,
-                'day': 'Пт',
-                'pair': 5,
-                'subject': 'Алгоритмы',
-                'type': 'Лекция',
-                'teacher': 'Васильев В.В.',
-                'classroom': 'ауд. 201'
+                'teacher': 'Сидоров С С',
+                'classroom': 'ауд. 1-405'
             }
         ]
         return test_schedule
