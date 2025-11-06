@@ -560,39 +560,10 @@ async def send_table_command(event: MessageCreated):
     try:
         await event.message.answer("🔄 Отправляю изображение расписания...")
 
-        # Отладочная информация - посмотрим какие атрибуты доступны
-        logging.info(f"🔍 Доступные атрибуты event: {dir(event)}")
-        logging.info(f"🔍 Доступные атрибуты event.message: {dir(event.message)}")
-
-        # Попробуем разные варианты получения chat_id
-        chat_id = None
-
-        # Вариант 1: через event.message.chat_id
-        if hasattr(event.message, 'chat_id'):
-            chat_id = event.message.chat_id
-            logging.info(f"✅ Найден chat_id через event.message.chat_id: {chat_id}")
-
-        # Вариант 2: через event.message.chat.id
-        elif hasattr(event.message, 'chat') and hasattr(event.message.chat, 'id'):
-            chat_id = event.message.chat.id
-            logging.info(f"✅ Найден chat_id через event.message.chat.id: {chat_id}")
-
-        # Вариант 3: через event.chat_id
-        elif hasattr(event, 'chat_id'):
-            chat_id = event.chat_id
-            logging.info(f"✅ Найден chat_id через event.chat_id: {chat_id}")
-
-        # Вариант 4: через event.message.recipient.chat_id (если есть)
-        elif hasattr(event.message, 'recipient') and hasattr(event.message.recipient, 'chat_id'):
-            chat_id = event.message.recipient.chat_id
-            logging.info(f"✅ Найден chat_id через event.message.recipient.chat_id: {chat_id}")
-
-        if chat_id is None:
-            logging.error("❌ Не удалось найти chat_id")
-            await event.message.answer("❌ Ошибка: не удалось определить чат")
-            return
-
+        # Получаем chat_id из event.message.recipient.chat_id
+        chat_id = event.message.recipient.chat_id
         logging.info(f"🔄 Вызываю send_table_image с chat_id: {chat_id}")
+
         await send_table_image(chat_id)
         logging.info("✅ send_table_image завершен")
 
@@ -601,7 +572,6 @@ async def send_table_command(event: MessageCreated):
         import traceback
         logging.error(f"❌ Трассировка: {traceback.format_exc()}")
         await event.message.answer("❌ Ошибка при отправке расписания")
-
 
 @dp.message_created(Command('debug'))
 async def debug_info(event: MessageCreated):
