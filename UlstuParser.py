@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 import logging
 from config import SCHEDULE_BASE_URL, MIN_GROUP_NUMBER, MAX_GROUP_NUMBER
+from groups_dict import GROUPS_DICT  # Добавляем импорт словаря групп
 
 
 class UlstuParser:
@@ -47,6 +48,13 @@ class UlstuParser:
 
         return f"{SCHEDULE_BASE_URL}/{group_number}.html"
 
+    def get_group_name(self, group_number):
+        """Получает реальное название группы из словаря"""
+        if group_number in GROUPS_DICT:
+            return GROUPS_DICT[group_number]
+        else:
+            return f"Группа_{group_number}"  # Значение по умолчанию
+
     def parse_all_groups(self):
         """Парсит расписание всех групп от 1 до 119"""
         if not self.logged_in:
@@ -58,20 +66,22 @@ class UlstuParser:
         for group_number in range(MIN_GROUP_NUMBER, MAX_GROUP_NUMBER + 1):
             try:
                 group_url = self.get_group_url(group_number)
-                logging.info(f"🔍 Парсим группу {group_number}...")
+                group_name = self.get_group_name(group_number)  # Используем реальное название
+                logging.info(f"🔍 Парсим группу {group_number} ({group_name})...")
 
-                group_name, week_number, schedules = self.parse_group_schedule(group_url)
+                parsed_group_name, week_number, schedules = self.parse_group_schedule(group_url)
 
+                # Используем реальное название из словаря вместо распарсенного
                 if group_name and schedules:
                     all_groups_data[group_number] = {
-                        'name': group_name,
+                        'name': group_name,  # Используем название из словаря
                         'week': week_number,
                         'schedule': schedules,
                         'url': group_url
                     }
                     logging.info(f"✅ Группа {group_number} ({group_name}): {len(schedules)} занятий")
                 else:
-                    logging.warning(f"⚠️ Группа {group_number}: расписание не найдено")
+                    logging.warning(f"⚠️ Группа {group_number} ({group_name}): расписание не найдено")
 
                 # Небольшая задержка чтобы не перегружать сервер
                 import time
@@ -86,7 +96,10 @@ class UlstuParser:
     def parse_group_schedule(self, group_url):
         """Парсит расписание группы УлГТУ - УЛУЧШЕННАЯ ВЕРСИЯ"""
         if not self.logged_in:
-            return None, "1", []
+            # Получаем номер группы из URL и используем реальное название
+            group_number = int(group_url.split('/')[-1].replace('.html', ''))
+            group_name = self.get_group_name(group_number)
+            return group_name, "1", []
 
         try:
             logging.info(f"🔍 Загружаю расписание: {group_url}")
@@ -95,23 +108,17 @@ class UlstuParser:
 
             if response.status_code != 200:
                 logging.warning(f"⚠️ Не удалось загрузить страницу: {response.status_code}")
-                return None, "1", []
+                # Получаем номер группы из URL и используем реальное название
+                group_number = int(group_url.split('/')[-1].replace('.html', ''))
+                group_name = self.get_group_name(group_number)
+                return group_name, "1", []
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Ищем информацию о группе
-            group_name = f"Группа_{group_url.split('/')[-1].replace('.html', '')}"  # Значение по умолчанию
+            # Получаем номер группы из URL и используем реальное название
+            group_number = int(group_url.split('/')[-1].replace('.html', ''))
+            group_name = self.get_group_name(group_number)
             week_number = "1"
-
-            # Ищем заголовок с группой
-            headers = soup.find_all(['b', 'h1', 'h2', 'h3', 'font'])
-            for header in headers:
-                text = header.get_text(strip=True)
-                if 'Группа:' in text:
-                    group_match = re.search(r'Группа:\s*([^\n]+)', text)
-                    if group_match:
-                        group_name = group_match.group(1).strip()
-                        break
 
             # Ищем все таблицы
             tables = soup.find_all("table", {"border": "1"})
@@ -164,12 +171,15 @@ class UlstuParser:
                                 schedules.append(schedule_item)
                                 logging.info(f"✅ Добавлено: {day_name} {pair_number} пара - {lesson_data['subject']}")
 
-            logging.info(f"📊 Итог: {len(schedules)} занятий")
+            logging.info(f"📊 Итог: {len(schedules)} занятий для группы {group_name}")
             return group_name, week_number, schedules
 
         except Exception as e:
             logging.error(f"❌ Ошибка парсинга: {e}")
-            return None, "1", []
+            # Получаем номер группы из URL и используем реальное название
+            group_number = int(group_url.split('/')[-1].replace('.html', ''))
+            group_name = self.get_group_name(group_number)
+            return group_name, "1", []
 
     def _parse_cell_content(self, cell_text):
         """Парсит содержимое ячейки с занятием - ОБНОВЛЕННАЯ ВЕРСИЯ для аудиторий"""

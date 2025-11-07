@@ -228,7 +228,7 @@ async def search_command(event: MessageCreated):
         if found_groups:
             groups_text = "🎯 *Найденные группы:*\n\n"
             for group_num, group_name in found_groups[:10]:  # Показываем первые 10
-                groups_text += f"• Группа {group_num}: {group_name}\n"
+                groups_text += f"• {group_name} (№{group_num})\n"
                 groups_text += f"  Используйте: `/group {group_num}`\n\n"
 
             if len(found_groups) > 10:
