@@ -135,32 +135,59 @@ async def table_handler(bot, event: MessageCreated):
 
 
 async def group_handler(bot, event: MessageCreated):
-    """Обработчик команды /group <номер> - расписание конкретной группы"""
+    """Обработчик команды /group <номер или название> - расписание конкретной группы"""
     try:
-        text = event.message.content.text.strip()
+        text = event.message.body.text.strip()
         parts = text.split()
 
         if len(parts) < 2:
             await event.message.answer(
-                "❌ Укажите номер группы\n"
-                f"Пример: `/group 61`\n"
+                "❌ Укажите номер или название группы\n"
+                f"Пример: `/group 61` или `/group ИВТИИбд-32`\n"
                 f"Доступные группы: от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
             )
             return
 
-        group_number = int(parts[1])
-
-        if group_number < MIN_GROUP_NUMBER or group_number > MAX_GROUP_NUMBER:
-            await event.message.answer(
-                f"❌ Номер группы должен быть от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
-            )
-            return
-
+        group_input = ' '.join(parts[1:])
         chat_id = event.message.recipient.chat_id
-        await generate_and_send_table(bot, chat_id, group_number)
 
-    except ValueError:
-        await event.message.answer("❌ Номер группы должен быть числом")
+        # Пробуем распознать ввод как число
+        try:
+            group_number = int(group_input)
+            if group_number < MIN_GROUP_NUMBER or group_number > MAX_GROUP_NUMBER:
+                await event.message.answer(
+                    f"❌ Номер группы должен быть от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
+                )
+                return
+            await generate_and_send_table(bot, chat_id, group_number)
+
+        except ValueError:
+            # Если ввод не число, ищем по названию группы
+            group_name = group_input.upper()
+            group_number = parser.find_group_number(group_name)
+
+            if group_number:
+                await event.message.answer(f"🔍 Найдена группа: {parser.get_group_name(group_number)} (№{group_number})")
+                await generate_and_send_table(bot, chat_id, group_number)
+            else:
+                # Предлагаем похожие группы
+                similar_groups = []
+                for num, name in GROUPS_DICT.items():
+                    if group_name in name.upper():
+                        similar_groups.append((num, name))
+
+                if similar_groups:
+                    groups_text = "❌ Группа не найдена, но есть похожие:\n\n"
+                    for num, name in similar_groups[:5]:  # Показываем первые 5
+                        groups_text += f"• {name} - используйте `/group {num}`\n"
+                    await event.message.answer(groups_text)
+                else:
+                    await event.message.answer(
+                        f"❌ Группа '{group_input}' не найдена.\n"
+                        f"Используйте номер группы от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER} "
+                        f"или точное название группы"
+                    )
+
     except Exception as e:
         logging.error(f"❌ Ошибка в обработчике /group: {e}")
         await event.message.answer("❌ Ошибка при получении расписания группы")
@@ -267,7 +294,7 @@ async def help_handler(bot, event: MessageCreated):
         "ℹ️ *Команды:*\n"
         "/start - Создать и сохранить расписание\n"
         "/table - Расписание группы по умолчанию\n"
-        "/group <номер> - Расписание конкретной группы\n"
+        "/group <номер или название> - Расписание конкретной группы\n"
         "/groups - Список доступных групп\n"
         "/search <название> - Поиск группы по названию\n"
         "/debug - Отладочная информация\n"

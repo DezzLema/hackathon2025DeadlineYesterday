@@ -120,3 +120,5 @@ GROUPS_DICT = {
     118: "Псков 0482-04М",
     119: "Псков 0482-06М"
 }
+# Обратный словарь для поиска номера по названию группы
+GROUPS_REVERSE_DICT = {name: number for number, name in GROUPS_DICT.items()}

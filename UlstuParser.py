@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 import logging
 from config import SCHEDULE_BASE_URL, MIN_GROUP_NUMBER, MAX_GROUP_NUMBER
-from groups_dict import GROUPS_DICT  # Добавляем импорт словаря групп
+from groups_dict import GROUPS_DICT, GROUPS_REVERSE_DICT  # Добавляем импорт обратного словаря
 
 
 class UlstuParser:
@@ -54,6 +54,20 @@ class UlstuParser:
             return GROUPS_DICT[group_number]
         else:
             return f"Группа_{group_number}"  # Значение по умолчанию
+
+    def find_group_number(self, group_name):
+        """Находит номер группы по названию"""
+        # Прямой поиск по точному совпадению
+        if group_name in GROUPS_REVERSE_DICT:
+            return GROUPS_REVERSE_DICT[group_name]
+
+        # Поиск по частичному совпадению (без учета регистра)
+        group_name_upper = group_name.upper()
+        for name, number in GROUPS_REVERSE_DICT.items():
+            if group_name_upper in name.upper():
+                return number
+
+        return None
 
     def parse_all_groups(self):
         """Парсит расписание всех групп от 1 до 119"""
@@ -283,3 +297,11 @@ class UlstuParser:
         """Получает расписание по номеру группы и создает изображение"""
         group_url = self.get_group_url(group_number)
         return self.get_schedule_image(group_url)
+
+    def get_schedule_image_by_name(self, group_name):
+        """Получает расписание по названию группы и создает изображение"""
+        group_number = self.find_group_number(group_name)
+        if group_number:
+            return self.get_schedule_image_by_number(group_number)
+        else:
+            raise ValueError(f"Группа с названием '{group_name}' не найдена")
