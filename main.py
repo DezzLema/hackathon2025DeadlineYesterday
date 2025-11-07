@@ -14,6 +14,7 @@ dp = Dispatcher()
 # Создаем парсер
 parser = UlstuParser()
 
+
 async def send_table_image(chat_id):
     """Отправляет существующий PNG файл с расписанием в чат"""
     logging.info("🔍 Начало send_table_image")
@@ -93,23 +94,56 @@ async def hello(event: MessageCreated):
 
 @dp.message_created(Command('table'))
 async def send_table_command(event: MessageCreated):
-    """Обработчик команды /table - отправляет существующий PNG с расписанием"""
+    """Обработчик команды /table - генерирует и отправляет расписание"""
     logging.info("🔄 Обработчик /table вызван")
     try:
-        await event.message.answer("🔄 Отправляю изображение расписания...")
-
         # Получаем chat_id из event.message.recipient.chat_id
         chat_id = event.message.recipient.chat_id
-        logging.info(f"🔄 Вызываю send_table_image с chat_id: {chat_id}")
+        logging.info(f"🔄 Генерирую расписание для chat_id: {chat_id}")
 
-        await send_table_image(chat_id)
-        logging.info("✅ send_table_image завершен")
+        await generate_and_send_table(chat_id)
+        logging.info("✅ generate_and_send_table завершен")
 
     except Exception as e:
         logging.error(f"❌ Ошибка в обработчике /table: {e}")
         import traceback
         logging.error(f"❌ Трассировка: {traceback.format_exc()}")
-        await event.message.answer("❌ Ошибка при отправке расписания")
+        await event.message.answer("❌ Ошибка при генерации расписания")
+
+
+async def generate_and_send_table(chat_id):
+    """Генерирует расписание и отправляет его в чат"""
+    try:
+        await bot.send_message(chat_id=chat_id, text="🔄 Генерирую расписание...")
+
+        # Генерируем расписание
+        schedule_image = parser.get_schedule_image(SCHEDULE_URL)
+
+        # Конвертируем в bytes и сохраняем
+        image_bytes_io = parser.image_generator.image_to_bytes(schedule_image)
+        with open("schedule.png", "wb") as f:
+            f.write(image_bytes_io.getvalue())
+
+        # Отправляем изображение
+        with open("schedule.png", "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="schedule.png"
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text="📅 Ваше расписание",
+            attachments=[input_media]
+        )
+
+        logging.info("✅ Расписание сгенерировано и отправлено")
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при генерации расписания: {e}")
+        await bot.send_message(chat_id=chat_id, text="❌ Ошибка при генерации расписания")
 
 
 @dp.message_created(Command('debug'))
