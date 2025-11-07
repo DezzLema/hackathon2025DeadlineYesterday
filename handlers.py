@@ -2,7 +2,7 @@ import logging
 import os
 from maxapi.types import BotStarted, Command, MessageCreated, InputMediaBuffer
 from UlstuParser import UlstuParser
-from config import SCHEDULE_URL
+from config import SCHEDULE_BASE_URL, MIN_GROUP_NUMBER, MAX_GROUP_NUMBER
 
 # Создаем парсер
 parser = UlstuParser()
@@ -51,26 +51,30 @@ async def send_table_image(bot, chat_id):
         await bot.send_message(chat_id=chat_id, text="❌ Ошибка при отправке расписания")
 
 
-async def generate_and_send_table(bot, chat_id):
+async def generate_and_send_table(bot, chat_id, group_number=None):
     """Генерирует расписание и отправляет его в чат"""
     try:
-        await bot.send_message(chat_id=chat_id, text="🔄 Генерирую расписание...")
-
-        # Генерируем расписание
-        schedule_image = parser.get_schedule_image(SCHEDULE_URL)
+        if group_number:
+            await bot.send_message(chat_id=chat_id, text=f"🔄 Генерирую расписание для группы {group_number}...")
+            schedule_image = parser.get_schedule_image_by_number(group_number)
+            filename = f"schedule_group_{group_number}.png"
+        else:
+            await bot.send_message(chat_id=chat_id, text="🔄 Генерирую расписание...")
+            schedule_image = parser.get_schedule_image(parser.get_group_url(61))  # группа по умолчанию
+            filename = "schedule.png"
 
         # Конвертируем в bytes и сохраняем
         image_bytes_io = parser.image_generator.image_to_bytes(schedule_image)
-        with open("schedule.png", "wb") as f:
+        with open(filename, "wb") as f:
             f.write(image_bytes_io.getvalue())
 
         # Отправляем изображение
-        with open("schedule.png", "rb") as file:
+        with open(filename, "rb") as file:
             image_data = file.read()
 
         input_media = InputMediaBuffer(
             buffer=image_data,
-            filename="schedule.png"
+            filename=filename
         )
 
         await bot.send_message(
@@ -90,7 +94,7 @@ async def bot_started_handler(bot, event: BotStarted):
     """Обработчик события запуска бота"""
     try:
         await bot.send_message(chat_id=event.chat_id, text="🔄 Загружаю расписание...")
-        schedule_image = parser.get_schedule_image(SCHEDULE_URL)
+        schedule_image = parser.get_schedule_image(SCHEDULE_BASE_URL)
         await send_table_image(bot, event.chat_id)
     except Exception as e:
         await bot.send_message(chat_id=event.chat_id, text="❌ Ошибка при запуске")
@@ -100,7 +104,7 @@ async def start_handler(bot, event: MessageCreated):
     """Обработчик команды /start"""
     try:
         await event.message.answer("🔄 Загружаю расписание...")
-        schedule_image = parser.get_schedule_image(SCHEDULE_URL)
+        schedule_image = parser.get_schedule_image(SCHEDULE_BASE_URL)
 
         image_bytes_io = parser.image_generator.image_to_bytes(schedule_image)
         with open("schedule.png", "wb") as f:
@@ -130,10 +134,105 @@ async def table_handler(bot, event: MessageCreated):
         await event.message.answer("❌ Ошибка при генерации расписания")
 
 
+async def group_handler(bot, event: MessageCreated):
+    """Обработчик команды /group <номер> - расписание конкретной группы"""
+    try:
+        text = event.message.content.text.strip()
+        parts = text.split()
+
+        if len(parts) < 2:
+            await event.message.answer(
+                "❌ Укажите номер группы\n"
+                f"Пример: `/group 61`\n"
+                f"Доступные группы: от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
+            )
+            return
+
+        group_number = int(parts[1])
+
+        if group_number < MIN_GROUP_NUMBER or group_number > MAX_GROUP_NUMBER:
+            await event.message.answer(
+                f"❌ Номер группы должен быть от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
+            )
+            return
+
+        chat_id = event.message.recipient.chat_id
+        await generate_and_send_table(bot, chat_id, group_number)
+
+    except ValueError:
+        await event.message.answer("❌ Номер группы должен быть числом")
+    except Exception as e:
+        logging.error(f"❌ Ошибка в обработчике /group: {e}")
+        await event.message.answer("❌ Ошибка при получении расписания группы")
+
+
+async def groups_handler(bot, event: MessageCreated):
+    """Обработчик команды /groups - информация о доступных группах"""
+    try:
+        groups_info = (
+            f"📚 *Доступные группы:*\n\n"
+            f"• Номера групп: от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}\n"
+            f"• Всего групп: {MAX_GROUP_NUMBER - MIN_GROUP_NUMBER + 1}\n\n"
+            f"*Команды:*\n"
+            f"`/group <номер>` - расписание конкретной группы\n"
+            f"`/table` - расписание группы по умолчанию\n"
+            f"`/search <название>` - поиск группы по названию\n\n"
+            f"*Пример:* `/group 61`"
+        )
+
+        await event.message.answer(groups_info)
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка в обработчике /groups: {e}")
+        await event.message.answer("❌ Ошибка при получении информации о группах")
+
+
+async def search_handler(bot, event: MessageCreated):
+    """Обработчик команды /search - поиск группы по названию"""
+    try:
+        text = event.message.content.text.strip()
+        parts = text.split()
+
+        if len(parts) < 2:
+            await event.message.answer(
+                "❌ Укажите название группы для поиска\n"
+                "Пример: `/search ИВТ`"
+            )
+            return
+
+        search_query = ' '.join(parts[1:]).upper()
+        await event.message.answer(f"🔍 Ищу группы содержащие: {search_query}\n\n*Это может занять некоторое время...*")
+
+        # Парсим все группы для поиска
+        all_groups = parser.parse_all_groups()
+
+        found_groups = []
+        for group_num, group_data in all_groups.items():
+            if search_query in group_data['name'].upper():
+                found_groups.append((group_num, group_data['name']))
+
+        if found_groups:
+            groups_text = "🎯 *Найденные группы:*\n\n"
+            for group_num, group_name in found_groups[:10]:  # Показываем первые 10
+                groups_text += f"• Группа {group_num}: {group_name}\n"
+                groups_text += f"  Используйте: `/group {group_num}`\n\n"
+
+            if len(found_groups) > 10:
+                groups_text += f"*... и еще {len(found_groups) - 10} групп*"
+
+            await event.message.answer(groups_text)
+        else:
+            await event.message.answer(f"❌ Группы содержащие '{search_query}' не найдены")
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка в обработчике /search: {e}")
+        await event.message.answer("❌ Ошибка при поиске групп")
+
+
 async def debug_handler(bot, event: MessageCreated):
     """Обработчик команды /debug - показывает отладочную информацию"""
     try:
-        group_name, week_number, schedules = parser.parse_group_schedule(SCHEDULE_URL)
+        group_name, week_number, schedules = parser.parse_group_schedule(SCHEDULE_BASE_URL)
 
         debug_text = f"""
 🔍 *Отладочная информация:*
@@ -167,7 +266,10 @@ async def help_handler(bot, event: MessageCreated):
     await event.message.answer(
         "ℹ️ *Команды:*\n"
         "/start - Создать и сохранить расписание\n"
-        "/table - Сгенерировать и получить расписание в виде изображения\n"
+        "/table - Расписание группы по умолчанию\n"
+        "/group <номер> - Расписание конкретной группы\n"
+        "/groups - Список доступных групп\n"
+        "/search <название> - Поиск группы по названию\n"
         "/debug - Отладочная информация\n"
         "/help - Справка"
     )

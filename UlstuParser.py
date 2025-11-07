@@ -3,6 +3,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 import logging
+from config import SCHEDULE_BASE_URL, MIN_GROUP_NUMBER, MAX_GROUP_NUMBER
 
 
 class UlstuParser:
@@ -39,28 +40,67 @@ class UlstuParser:
             logging.error(f"❌ Ошибка при авторизации: {e}")
             return False
 
+    def get_group_url(self, group_number):
+        """Генерирует URL для указанного номера группы"""
+        if group_number < MIN_GROUP_NUMBER or group_number > MAX_GROUP_NUMBER:
+            raise ValueError(f"Номер группы должен быть от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}")
+
+        return f"{SCHEDULE_BASE_URL}/{group_number}.html"
+
+    def parse_all_groups(self):
+        """Парсит расписание всех групп от 1 до 119"""
+        if not self.logged_in:
+            logging.error("❌ Не авторизован для парсинга")
+            return {}
+
+        all_groups_data = {}
+
+        for group_number in range(MIN_GROUP_NUMBER, MAX_GROUP_NUMBER + 1):
+            try:
+                group_url = self.get_group_url(group_number)
+                logging.info(f"🔍 Парсим группу {group_number}...")
+
+                group_name, week_number, schedules = self.parse_group_schedule(group_url)
+
+                if group_name and schedules:
+                    all_groups_data[group_number] = {
+                        'name': group_name,
+                        'week': week_number,
+                        'schedule': schedules,
+                        'url': group_url
+                    }
+                    logging.info(f"✅ Группа {group_number} ({group_name}): {len(schedules)} занятий")
+                else:
+                    logging.warning(f"⚠️ Группа {group_number}: расписание не найдено")
+
+                # Небольшая задержка чтобы не перегружать сервер
+                import time
+                time.sleep(0.5)
+
+            except Exception as e:
+                logging.error(f"❌ Ошибка парсинга группы {group_number}: {e}")
+                continue
+
+        return all_groups_data
+
     def parse_group_schedule(self, group_url):
         """Парсит расписание группы УлГТУ - УЛУЧШЕННАЯ ВЕРСИЯ"""
         if not self.logged_in:
             return None, "1", []
 
         try:
-            logging.info(f"🔍 Загружаю расписание...")
+            logging.info(f"🔍 Загружаю расписание: {group_url}")
             response = self.session.get(group_url)
             response.encoding = 'cp1251'
 
             if response.status_code != 200:
+                logging.warning(f"⚠️ Не удалось загрузить страницу: {response.status_code}")
                 return None, "1", []
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Сохраняем HTML для отладки
-            with open("debug_page.html", "w", encoding='utf-8') as f:
-                f.write(soup.prettify())
-            logging.info("✅ HTML сохранен в debug_page.html")
-
             # Ищем информацию о группе
-            group_name = "ИВТИИбд-32"  # Значение по умолчанию
+            group_name = f"Группа_{group_url.split('/')[-1].replace('.html', '')}"  # Значение по умолчанию
             week_number = "1"
 
             # Ищем заголовок с группой
@@ -124,18 +164,12 @@ class UlstuParser:
                                 schedules.append(schedule_item)
                                 logging.info(f"✅ Добавлено: {day_name} {pair_number} пара - {lesson_data['subject']}")
 
-            # Если не нашли занятий, создаем тестовые данные
-            if not schedules:
-                logging.warning("⚠️ Занятий не найдено, создаю тестовые данные")
-                schedules = self._create_test_schedule()
-
             logging.info(f"📊 Итог: {len(schedules)} занятий")
             return group_name, week_number, schedules
 
         except Exception as e:
             logging.error(f"❌ Ошибка парсинга: {e}")
-            # Возвращаем тестовые данные при ошибке
-            return "ИВТИИбд-32", "1", self._create_test_schedule()
+            return None, "1", []
 
     def _parse_cell_content(self, cell_text):
         """Парсит содержимое ячейки с занятием - ОБНОВЛЕННАЯ ВЕРСИЯ для аудиторий"""
@@ -230,49 +264,12 @@ class UlstuParser:
             logging.error(f"❌ Ошибка парсинга ячейки: {e}")
             return None
 
-    def _create_test_schedule(self):
-        """Создает тестовое расписание для демонстрации"""
-        test_schedule = [
-            {
-                'week': 1,
-                'day': 'Пн',
-                'pair': 1,
-                'subject': 'Математика',
-                'type': 'Лекция',
-                'teacher': 'Лапшов Ю А',
-                'classroom': 'ауд. 3-312'
-            },
-            {
-                'week': 1,
-                'day': 'Пн',
-                'pair': 3,
-                'subject': 'Программирование',
-                'type': 'Практика',
-                'teacher': 'Иванов И И',
-                'classroom': 'ауд. 4-215'
-            },
-            {
-                'week': 1,
-                'day': 'Вт',
-                'pair': 2,
-                'subject': 'Физика',
-                'type': 'Лекция',
-                'teacher': 'Петров П П 2-101',
-                'classroom': 'ауд. 2-101'
-            },
-            {
-                'week': 1,
-                'day': 'Ср',
-                'pair': 4,
-                'subject': 'Базы данных',
-                'type': 'Лабораторная',
-                'teacher': 'Сидоров С С',
-                'classroom': 'ауд. 1-405'
-            }
-        ]
-        return test_schedule
-
     def get_schedule_image(self, group_url):
         """Получает расписание и создает изображение"""
         group_name, week_number, schedules = self.parse_group_schedule(group_url)
         return self.image_generator.create_schedule_image(group_name, week_number, schedules)
+
+    def get_schedule_image_by_number(self, group_number):
+        """Получает расписание по номеру группы и создает изображение"""
+        group_url = self.get_group_url(group_number)
+        return self.get_schedule_image(group_url)
