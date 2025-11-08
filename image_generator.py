@@ -39,9 +39,9 @@ class ScheduleImageGenerator:
         width = 1280
         height = 720
         margin = 15
-        day_column_height = 80  # Высота колонки дня
+        day_column_height = 93  # Высота колонки дня
         pair_column_width = 140  # Ширина колонки пары
-        time_row_height = 30  # Высота строки с временем
+        time_row_height = 40  # Высота строки с временем
 
         img = Image.new('RGB', (width, height), color='#1a1a1a')
         draw = ImageDraw.Draw(img)
@@ -65,7 +65,7 @@ class ScheduleImageGenerator:
         }
 
         # Дни недели (теперь по вертикали слева)
-        days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"]
+        days = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"]
         day_column_width = 120  # Ширина колонки дней
 
         # Заголовок дней
