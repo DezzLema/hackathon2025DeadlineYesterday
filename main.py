@@ -171,6 +171,9 @@ async def group_command(event: MessageCreated):
                     f"❌ Номер группы должен быть от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
                 )
                 return
+
+            # ОДИН вызов функции
+            await event.message.answer(f"🔍 Генерирую расписание для группы {group_number}...")
             await generate_and_send_table(chat_id, group_number)
 
         except ValueError:
@@ -179,7 +182,8 @@ async def group_command(event: MessageCreated):
             group_number = parser.find_group_number(group_name)
 
             if group_number:
-                await event.message.answer(f"🔍 Найдена группа: {parser.get_group_name(group_number)} (№{group_number})")
+                # ТОТ ЖЕ САМЫЙ вызов функции, но с другим сообщением
+                await event.message.answer(f"🔍 Генерирую расписание для группы {parser.get_group_name(group_number)}...")
                 await generate_and_send_table(chat_id, group_number)
             else:
                 # Предлагаем похожие группы

@@ -108,7 +108,7 @@ class UlstuParser:
         return all_groups_data
 
     def parse_group_schedule(self, group_url):
-        """Парсит расписание группы УлГТУ - УЛУЧШЕННАЯ ВЕРСИЯ"""
+        """Парсит расписание группы УлГТУ - ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ"""
         if not self.logged_in:
             # Получаем номер группы из URL и используем реальное название
             group_number = int(group_url.split('/')[-1].replace('.html', ''))
@@ -132,7 +132,30 @@ class UlstuParser:
             # Получаем номер группы из URL и используем реальное название
             group_number = int(group_url.split('/')[-1].replace('.html', ''))
             group_name = self.get_group_name(group_number)
-            week_number = "1"
+            week_number = "1"  # значение по умолчанию
+
+            # ИЩЕМ НОМЕР НЕДЕЛИ В ЗАГОЛОВКЕ
+            # Ищем заголовок с неделей
+            week_elements = soup.find_all('font', {'color': '#ff00ff', 'face': 'Times New Roman', 'size': '6'})
+            for element in week_elements:
+                text = element.get_text(strip=True)
+                if 'Неделя:' in text:
+                    # Извлекаем номер недели (например: "10-я", "11-я")
+                    week_match = re.search(r'Неделя:\s*(\d+)-я', text)
+                    if week_match:
+                        week_number = week_match.group(1)
+                        logging.info(f"📅 Найдена неделя: {week_number}")
+                    break
+
+            # Если не нашли через элементы, ищем по тексту
+            if week_number == "1":
+                week_texts = soup.find_all(text=re.compile(r'Неделя:'))
+                for text in week_texts:
+                    week_match = re.search(r'Неделя:\s*(\d+)-я', str(text))
+                    if week_match:
+                        week_number = week_match.group(1)
+                        logging.info(f"📅 Найдена неделя через текстовый поиск: {week_number}")
+                        break
 
             # Ищем все таблицы
             tables = soup.find_all("table", {"border": "1"})
@@ -167,14 +190,14 @@ class UlstuParser:
                         pair_number = cell_idx
 
                         # Получаем текст ячейки
-                        cell_text = cell.get_text(separator='\n', strip=True)
+                        cell_text = cell.get_text()
 
                         if cell_text and cell_text not in ['', '-', ' ']:
                             # Парсим содержимое ячейки
                             lesson_data = self._parse_cell_content(cell_text)
                             if lesson_data:
                                 schedule_item = {
-                                    'week': 1,
+                                    'week': int(week_number),
                                     'day': day_name,
                                     'pair': pair_number,
                                     'subject': lesson_data['subject'],
@@ -185,8 +208,9 @@ class UlstuParser:
                                 schedules.append(schedule_item)
                                 logging.info(f"✅ Добавлено: {day_name} {pair_number} пара - {lesson_data['subject']}")
 
-            logging.info(f"📊 Итог: {len(schedules)} занятий для группы {group_name}")
+            logging.info(f"📊 Итог: {len(schedules)} занятий для группы {group_name}, неделя {week_number}")
             return group_name, week_number, schedules
+
 
         except Exception as e:
             logging.error(f"❌ Ошибка парсинга: {e}")
@@ -196,7 +220,7 @@ class UlstuParser:
             return group_name, "1", []
 
     def _parse_cell_content(self, cell_text):
-        """Парсит содержимое ячейки с занятием - ОБНОВЛЕННАЯ ВЕРСИЯ для аудиторий"""
+        """Парсит содержимое ячейки с занятием - УЛУЧШЕННАЯ ВЕРСИЯ"""
         try:
             lines = [line.strip() for line in cell_text.split('\n') if line.strip()]
 
@@ -204,27 +228,47 @@ class UlstuParser:
                 return None
 
             # Первая строка - предмет и тип
-            first_line = lines[0].lower()
+            first_line = lines[0]
 
             # Определяем тип занятия
             lesson_type = "Лекция"
-            if 'пр.' in first_line or 'практ' in first_line:
-                lesson_type = "Практика"
-            elif 'лаб.' in first_line or 'лабор' in first_line:
-                lesson_type = "Лабораторная"
-            elif 'сем.' in first_line:
-                lesson_type = "Семинар"
-            elif 'зач.' in first_line:
-                lesson_type = "Зачёт"
-            elif 'экз.' in first_line:
-                lesson_type = "Экзамен"
+            type_indicators = {
+                'пр.': "Практика",
+                'практ': "Практика",
+                'лаб.': "Лабораторная",
+                'лабор': "Лабораторная",
+                'сем.': "Семинар",
+                'зач.': "Зачёт",
+                'экз.': "Экзамен",
+                'лек.': "Лекция"
+            }
 
-            # Извлекаем название предмета (убираем сокращения типа)
-            subject = lines[0]
-            for abbrev in ['лек.', 'пр.', 'лаб.', 'сем.', 'зач.', 'экз.']:
-                if abbrev in subject.lower():
-                    subject = subject.lower().replace(abbrev, '').strip().capitalize()
+            for indicator, lesson_type_name in type_indicators.items():
+                if indicator in first_line.lower():
+                    lesson_type = lesson_type_name
+                    # Убираем сокращение типа из названия предмета
+                    first_line = first_line.lower().replace(indicator, '').strip()
+                    if first_line:  # Capitalize только если строка не пустая
+                        first_line = first_line.capitalize()
                     break
+
+            # Если не нашли сокращение, но есть русские обозначения
+            if lesson_type == "Лекция":
+                russian_indicators = {
+                    'практика': "Практика",
+                    'лабораторная': "Лабораторная",
+                    'семинар': "Семинар",
+                    'зачёт': "Зачёт",
+                    'экзамен': "Экзамен",
+                    'лекция': "Лекция"
+                }
+
+                for indicator, lesson_type_name in russian_indicators.items():
+                    if indicator in first_line.lower():
+                        lesson_type = lesson_type_name
+                        break
+
+            subject = first_line if first_line else "Не указано"
 
             # Преподаватель и аудитория
             teacher = "Не указан"
@@ -235,8 +279,8 @@ class UlstuParser:
                 teacher_line = lines[1]
 
                 # Паттерн для поиска формата "Фамилия И О номер_аудитории"
-                # Пример: "Лапшов Ю А 3-312"
-                classroom_pattern = r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+([А-ЯЁ]\s+[А-ЯЁ])\s+([\d\-]+)$'
+                # Пример: "Лапшов Ю А 3-312", "Щукарев И А 3-314"
+                classroom_pattern = r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+([А-ЯЁ]\s+[А-ЯЁ])\s+([\d\-_]+)$'
                 classroom_match = re.search(classroom_pattern, teacher_line)
 
                 if classroom_match:
@@ -247,7 +291,6 @@ class UlstuParser:
 
                     teacher = f"{teacher_name} {initials}"
                     classroom = f"ауд. {room_number}"
-
                     logging.info(f"🎯 Найдена аудитория в формате ФИО+аудитория: {teacher} -> {classroom}")
 
                 else:
@@ -263,7 +306,7 @@ class UlstuParser:
             if len(lines) > 2 and classroom == "Не указана":
                 third_line = lines[2]
                 # Проверяем формат "Фамилия И О номер_аудитории" в третьей строке
-                classroom_pattern = r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+([А-ЯЁ]\s+[А-ЯЁ])\s+([\d\-]+)$'
+                classroom_pattern = r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+([А-ЯЁ]\s+[А-ЯЁ])\s+([\d\-_]+)$'
                 classroom_match = re.search(classroom_pattern, third_line)
 
                 if classroom_match:
@@ -278,7 +321,7 @@ class UlstuParser:
                     classroom = third_line
 
             return {
-                'subject': subject if subject else "Не указано",
+                'subject': subject,
                 'type': lesson_type,
                 'teacher': teacher if teacher else "Не указан",
                 'classroom': classroom
