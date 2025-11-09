@@ -126,16 +126,9 @@ async def process_role_selection(chat_id, role):
     user_status[chat_id] = role
 
     if role == "student":
-        await bot.send_message(
-            chat_id=chat_id,
-            text="👨‍🎓 *Вы выбрали роль: Студент*\n\n"
-                 "Теперь вам доступны команды для работы с расписанием:\n\n"
-                 "• `/table` - получить расписание группы по умолчанию\n"
-                 "• `/group <номер>` - расписание конкретной группы\n"
-                 "• `/groups` - список доступных групп\n"
-                 "• `/search <название>` - поиск группы по названию\n\n"
-                 "Для справки используйте `/help`"
-        )
+        # Вместо отправки текста отправляем меню с кнопками
+        await send_student_menu(chat_id)
+
     elif role == "abiturient":
         await bot.send_message(
             chat_id=chat_id,
@@ -158,15 +151,11 @@ async def process_role_selection(chat_id, role):
                  "Для справки используйте `/help`"
         )
 
-
 @dp.message_callback()
 async def handle_callback(event: MessageCallback):
     """Обработка нажатий на callback-кнопки"""
     try:
-        # Получаем chat_id из сообщения, к которому привязана кнопка
         chat_id = event.message.recipient.chat_id
-
-        # Получаем payload из callback
         payload = event.callback.payload
 
         logging.info(f"🔍 Callback получен: chat_id={chat_id}, payload={payload}")
@@ -174,12 +163,31 @@ async def handle_callback(event: MessageCallback):
         if payload and payload.startswith("role_"):
             role = payload.split("_")[1]
             await process_role_selection(chat_id, role)
+        elif payload == "student_menu":
+            await send_student_menu(chat_id)
+        elif payload == "student_schedule":
+            await generate_and_send_table(chat_id)
+        elif payload == "student_events":
+            await send_events_info(chat_id)
+        elif payload == "student_certificate":
+            await send_certificate_info(chat_id)
+        elif payload == "back_to_main":
+            await send_welcome_message(chat_id)
         else:
             await bot.send_message(
                 chat_id=chat_id,
                 text="❌ Неизвестный callback"
             )
 
+    except Exception as e:
+        logging.error(f"❌ Ошибка в обработчике callback: {e}")
+        try:
+            await bot.send_message(
+                chat_id=event.message.recipient.chat_id,
+                text="❌ Ошибка при обработке выбора"
+            )
+        except:
+            pass
     except Exception as e:
         logging.error(f"❌ Ошибка в обработчике callback: {e}")
         # Отправляем сообщение об ошибке, если можем получить chat_id
@@ -192,13 +200,64 @@ async def handle_callback(event: MessageCallback):
             pass
 
 
+async def send_student_menu(chat_id):
+    """Отправляет меню для студентов с тремя кнопками"""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="📅 Расписание", payload="student_schedule"),
+    )
+    builder.row(
+        CallbackButton(text="🎭 Мероприятия", payload="student_events"),
+    )
+    builder.row(
+        CallbackButton(text="📄 Заказ справки", payload="student_certificate"),
+    )
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="back_to_main"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text="🎓 *Студенческое меню*\n\nВыберите нужный раздел:",
+        attachments=[builder.as_markup()]
+    )
+
+
+async def send_events_info(chat_id):
+    """Отправляет информацию о мероприятиях"""
+    events_text = (
+        "тут инфа о мероприятиях"
+    )
+
+    await bot.send_message(chat_id=chat_id, text=events_text)
+
+
+async def send_certificate_info(chat_id):
+    """Отправляет информацию о заказе справок"""
+    certificate_text = (
+        "Тут будет инфа о заказе справок. Ссылка на единое окно и инструкция"
+    )
+
+    await bot.send_message(chat_id=chat_id, text=certificate_text)
+
+
 # Обработчики команд ролей (оставляем для ручного ввода команд)
 @dp.message_created(Command('student'))
 async def student_command(event: MessageCreated):
     """Обработчик команды /student - активация роли студента"""
     try:
         chat_id = event.message.recipient.chat_id
-        await process_role_selection(chat_id, "student")
+        user_status[chat_id] = "student"
+        await send_student_menu(chat_id)
+
+        # Отправляем дополнительную информацию
+        info_text = (
+            "👨‍🎓 *Роль студента активирована!*\n\n"
+            "Используйте кнопки выше для быстрого доступа к функциям "
+            "или команды из меню помощи `/help`"
+        )
+        await event.message.answer(info_text)
+
     except Exception as e:
         logging.error(f"❌ Ошибка в обработчике /student: {e}")
         await event.message.answer("❌ Ошибка при выборе роли")
