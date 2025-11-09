@@ -2,7 +2,9 @@ import asyncio
 import logging
 import os
 from maxapi import Bot, Dispatcher
-from maxapi.types import BotStarted, Command, MessageCreated, InputMediaBuffer
+from maxapi.types import BotStarted, Command, MessageCreated, InputMediaBuffer, MessageCallback
+from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
+from maxapi.types import CallbackButton
 from UlstuParser import UlstuParser
 from groups_dict import GROUPS_DICT  # Добавляем импорт словаря групп
 from config import *
@@ -14,6 +16,9 @@ dp = Dispatcher()
 
 # Создаем парсер
 parser = UlstuParser()
+
+# Хранилище для статуса пользователей
+user_status = {}
 
 
 async def send_table_image(chat_id):
@@ -98,13 +103,134 @@ async def generate_and_send_table(chat_id, group_number=None):
         await bot.send_message(chat_id=chat_id, text="❌ Ошибка при генерации расписания")
 
 
+async def send_welcome_message(chat_id):
+    """Отправляет приветственное сообщение с кнопками выбора роли"""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="👨‍🎓 Абитуриент", payload="role_abiturient"),
+        CallbackButton(text="👨‍🎓 Студент", payload="role_student"),
+    )
+    builder.row(
+        CallbackButton(text="👨‍🏫 Преподаватель", payload="role_teacher"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text="🎓 Добро пожаловать в нашего бота - цифровой вуз! Выбери нужный вариант:",
+        attachments=[builder.as_markup()]
+    )
+
+
+async def process_role_selection(chat_id, role):
+    """Обрабатывает выбор роли пользователем"""
+    user_status[chat_id] = role
+
+    if role == "student":
+        await bot.send_message(
+            chat_id=chat_id,
+            text="👨‍🎓 *Вы выбрали роль: Студент*\n\n"
+                 "Теперь вам доступны команды для работы с расписанием:\n\n"
+                 "• `/table` - получить расписание группы по умолчанию\n"
+                 "• `/group <номер>` - расписание конкретной группы\n"
+                 "• `/groups` - список доступных групп\n"
+                 "• `/search <название>` - поиск группы по названию\n\n"
+                 "Для справки используйте `/help`"
+        )
+    elif role == "abiturient":
+        await bot.send_message(
+            chat_id=chat_id,
+            text="🎓 *Вы выбрали роль: Абитуриент*\n\n"
+                 "Здесь вы можете получить информацию о:\n\n"
+                 "• Поступлении в университет\n"
+                 "• Факультетах и специальностях\n"
+                 "• Вступительных испытаниях\n"
+                 "• Сроки подачи документов\n\n"
+                 "Для справки используйте `/help`"
+        )
+    elif role == "teacher":
+        await bot.send_message(
+            chat_id=chat_id,
+            text="👨‍🏫 *Вы выбрали роль: Преподаватель*\n\n"
+                 "Здесь вы можете получить информацию о:\n\n"
+                 "• Расписании занятий\n"
+                 "• Учебном процессе\n"
+                 "• Методических материалах\n\n"
+                 "Для справки используйте `/help`"
+        )
+
+
+@dp.message_callback()
+async def handle_callback(event: MessageCallback):
+    """Обработка нажатий на callback-кнопки"""
+    try:
+        # Получаем chat_id из сообщения, к которому привязана кнопка
+        chat_id = event.message.recipient.chat_id
+
+        # Получаем payload из callback
+        payload = event.callback.payload
+
+        logging.info(f"🔍 Callback получен: chat_id={chat_id}, payload={payload}")
+
+        if payload and payload.startswith("role_"):
+            role = payload.split("_")[1]
+            await process_role_selection(chat_id, role)
+        else:
+            await bot.send_message(
+                chat_id=chat_id,
+                text="❌ Неизвестный callback"
+            )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка в обработчике callback: {e}")
+        # Отправляем сообщение об ошибке, если можем получить chat_id
+        try:
+            await bot.send_message(
+                chat_id=event.message.recipient.chat_id,
+                text="❌ Ошибка при обработке выбора"
+            )
+        except:
+            pass
+
+
+# Обработчики команд ролей (оставляем для ручного ввода команд)
+@dp.message_created(Command('student'))
+async def student_command(event: MessageCreated):
+    """Обработчик команды /student - активация роли студента"""
+    try:
+        chat_id = event.message.recipient.chat_id
+        await process_role_selection(chat_id, "student")
+    except Exception as e:
+        logging.error(f"❌ Ошибка в обработчике /student: {e}")
+        await event.message.answer("❌ Ошибка при выборе роли")
+
+
+@dp.message_created(Command('abiturient'))
+async def abiturient_command(event: MessageCreated):
+    """Обработчик команды /abiturient - активация роли абитуриента"""
+    try:
+        chat_id = event.message.recipient.chat_id
+        await process_role_selection(chat_id, "abiturient")
+    except Exception as e:
+        logging.error(f"❌ Ошибка в обработчике /abiturient: {e}")
+        await event.message.answer("❌ Ошибка при выборе роли")
+
+
+@dp.message_created(Command('teacher'))
+async def teacher_command(event: MessageCreated):
+    """Обработчик команды /teacher - активация роли преподавателя"""
+    try:
+        chat_id = event.message.recipient.chat_id
+        await process_role_selection(chat_id, "teacher")
+    except Exception as e:
+        logging.error(f"❌ Ошибка в обработчике /teacher: {e}")
+        await event.message.answer("❌ Ошибка при выборе роли")
+
+
 # Обработчики команд
 @dp.bot_started()
 async def bot_started(event: BotStarted):
     try:
-        await bot.send_message(chat_id=event.chat_id, text="🔄 Загружаю расписание...")
-        schedule_image = parser.get_schedule_image(parser.get_group_url(61))
-        await send_table_image(event.chat_id)
+        await send_welcome_message(event.chat_id)
     except Exception as e:
         await bot.send_message(chat_id=event.chat_id, text="❌ Ошибка при запуске")
 
@@ -112,17 +238,9 @@ async def bot_started(event: BotStarted):
 @dp.message_created(Command('start'))
 async def hello(event: MessageCreated):
     try:
-        await event.message.answer("🔄 Загружаю расписание...")
-        schedule_image = parser.get_schedule_image(parser.get_group_url(61))
-
-        image_bytes_io = parser.image_generator.image_to_bytes(schedule_image)
-        with open("schedule.png", "wb") as f:
-            f.write(image_bytes_io.getvalue())
-
-        await event.message.answer("📅 *Расписание готово!*\nФайл сохранен как 'schedule.png'")
-
+        await send_welcome_message(event.message.recipient.chat_id)
     except Exception as e:
-        await event.message.answer("❌ Ошибка при получении расписания")
+        await event.message.answer("❌ Ошибка при запуске")
 
 
 @dp.message_created(Command('table'))
@@ -130,10 +248,17 @@ async def send_table_command(event: MessageCreated):
     """Обработчик команды /table - генерирует и отправляет расписание"""
     logging.info("🔄 Обработчик /table вызван")
     try:
-        # Получаем chat_id из event.message.recipient.chat_id
         chat_id = event.message.recipient.chat_id
-        logging.info(f"🔄 Генерирую расписание для chat_id: {chat_id}")
 
+        # Проверяем, активировал ли пользователь роль студента
+        if user_status.get(chat_id) != "student":
+            await event.message.answer(
+                "❌ Эта команда доступна только для студентов.\n"
+                "Пожалуйста, сначала выберите роль студента с помощью команды /start"
+            )
+            return
+
+        logging.info(f"🔄 Генерирую расписание для chat_id: {chat_id}")
         await generate_and_send_table(chat_id)
         logging.info("✅ generate_and_send_table завершен")
 
@@ -148,6 +273,16 @@ async def send_table_command(event: MessageCreated):
 async def group_command(event: MessageCreated):
     """Обработчик команды /group <номер или название> - расписание конкретной группы"""
     try:
+        chat_id = event.message.recipient.chat_id
+
+        # Проверяем, активировал ли пользователь роль студента
+        if user_status.get(chat_id) != "student":
+            await event.message.answer(
+                "❌ Эта команда доступна только для студентов.\n"
+                "Пожалуйста, сначала выберите роль студента с помощью команды /start"
+            )
+            return
+
         # Получаем текст команды из event
         command_text = event.message.body.text.strip()
         parts = command_text.split()
@@ -161,7 +296,6 @@ async def group_command(event: MessageCreated):
             return
 
         group_input = ' '.join(parts[1:])
-        chat_id = event.message.recipient.chat_id
 
         # Пробуем распознать ввод как число
         try:
@@ -209,6 +343,16 @@ async def group_command(event: MessageCreated):
 async def groups_command(event: MessageCreated):
     """Обработчик команды /groups - информация о доступных группах"""
     try:
+        chat_id = event.message.recipient.chat_id
+
+        # Проверяем, активировал ли пользователь роль студента
+        if user_status.get(chat_id) != "student":
+            await event.message.answer(
+                "❌ Эта команда доступна только для студентов.\n"
+                "Пожалуйста, сначала выберите роль студента с помощью команды /start"
+            )
+            return
+
         groups_info = (
             f"📚 *Доступные группы:*\n\n"
             f"• Номера групп: от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}\n"
@@ -231,6 +375,16 @@ async def groups_command(event: MessageCreated):
 async def search_command(event: MessageCreated):
     """Обработчик команды /search - поиск группы по названию"""
     try:
+        chat_id = event.message.recipient.chat_id
+
+        # Проверяем, активировал ли пользователь роль студента
+        if user_status.get(chat_id) != "student":
+            await event.message.answer(
+                "❌ Эта команда доступна только для студентов.\n"
+                "Пожалуйста, сначала выберите роль студента с помощью команды /start"
+            )
+            return
+
         # Получаем текст команды из event
         command_text = event.message.content.text.strip()
         parts = command_text.split()
@@ -306,16 +460,30 @@ async def debug_info(event: MessageCreated):
 
 @dp.message_created(Command('help'))
 async def help_command(event: MessageCreated):
-    await event.message.answer(
-        "ℹ️ *Команды:*\n"
-        "/start - Создать и сохранить расписание\n"
-        "/table - Расписание группы по умолчанию\n"
-        "/group <номер или название> - Расписание конкретной группы\n"
-        "/groups - Список доступных групп\n"
-        "/search <название> - Поиск группы по названию\n"
-        "/debug - Отладочная информация\n"
-        "/help - Справка"
-    )
+    chat_id = event.message.recipient.chat_id
+    status = user_status.get(chat_id, "не выбрана")
+
+    help_text = f"ℹ️ *Справка:*\n\n👤 Ваш статус: {status}\n\n*Основные команды:*\n"
+    help_text += "/start - Выбор роли и начало работы\n"
+    help_text += "/help - Эта справка\n\n"
+
+    if status == "student":
+        help_text += "*📚 Команды для студентов:*\n"
+        help_text += "/table - Расписание группы по умолчанию\n"
+        help_text += "/group <номер или название> - Расписание конкретной группы\n"
+        help_text += "/groups - Список доступных групп\n"
+        help_text += "/search <название> - Поиск группы по названию\n"
+        help_text += "/debug - Отладочная информация\n"
+    elif status == "abiturient":
+        help_text += "*🎓 Команды для абитуриентов:*\n"
+        help_text += "Информация о поступлении...\n"
+    elif status == "teacher":
+        help_text += "*👨‍🏫 Команды для преподавателей:*\n"
+        help_text += "Информация для преподавателей...\n"
+    else:
+        help_text += "Выберите роль с помощью /start чтобы получить доступ к командам"
+
+    await event.message.answer(help_text)
 
 
 @dp.message_created()
@@ -324,7 +492,7 @@ async def handle_message(event: MessageCreated):
         text = event.message.content.text.strip()
         if text and not text.startswith('/'):
             await event.message.answer(
-                "🤔 Используйте /start для создания расписания или /table для получения изображения"
+                "🤔 Используйте /start для выбора роли или /help для справки"
             )
     except Exception as e:
         logging.error(f"Ошибка: {e}")
