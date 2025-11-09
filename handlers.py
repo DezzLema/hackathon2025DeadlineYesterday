@@ -3,7 +3,6 @@ import os
 from maxapi.types import BotStarted, Command, MessageCreated, InputMediaBuffer
 from UlstuParser import UlstuParser
 from config import SCHEDULE_BASE_URL, MIN_GROUP_NUMBER, MAX_GROUP_NUMBER
-from groups_dict import GROUPS_DICT
 
 # Создаем парсер
 parser = UlstuParser()
@@ -160,9 +159,6 @@ async def group_handler(bot, event: MessageCreated):
                     f"❌ Номер группы должен быть от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
                 )
                 return
-
-            # ОДИН вызов вместо двух
-            await event.message.answer(f"🔍 Генерирую расписание для группы {group_number}...")
             await generate_and_send_table(bot, chat_id, group_number)
 
         except ValueError:
@@ -171,9 +167,7 @@ async def group_handler(bot, event: MessageCreated):
             group_number = parser.find_group_number(group_name)
 
             if group_number:
-                # ОДИН вызов вместо двух
-                await event.message.answer(
-                    f"🔍 Генерирую расписание для группы {parser.get_group_name(group_number)}...")
+                await event.message.answer(f"🔍 Найдена группа: {parser.get_group_name(group_number)} (№{group_number})")
                 await generate_and_send_table(bot, chat_id, group_number)
             else:
                 # Предлагаем похожие группы
@@ -184,7 +178,7 @@ async def group_handler(bot, event: MessageCreated):
 
                 if similar_groups:
                     groups_text = "❌ Группа не найдена, но есть похожие:\n\n"
-                    for num, name in similar_groups[:5]:
+                    for num, name in similar_groups[:5]:  # Показываем первые 5
                         groups_text += f"• {name} - используйте `/group {num}`\n"
                     await event.message.answer(groups_text)
                 else:
