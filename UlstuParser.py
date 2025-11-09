@@ -65,11 +65,13 @@ class UlstuParser:
 
         part_id, part_data = self.get_schedule_part_for_group(group_number)
 
-        # Для части 1 используем прямую нумерацию, для части 2 - продолжаем с 1
+        # Преобразуем номер группы для URL
         if part_id == 1:
-            url_group_number = group_number
-        else:
-            url_group_number = group_number - 115  # Преобразуем 116-234 в 1-119
+            url_group_number = group_number  # 1-115
+        elif part_id == 2:
+            url_group_number = group_number - 115  # 116-234 → 1-119
+        else:  # part_id == 3
+            url_group_number = group_number - 234  # 235-464 → 1-230
 
         url = part_data['url_template'].format(url_group_number)
         logging.info(f"🔗 Формирую URL для группы {group_number}: {url}")
@@ -148,8 +150,10 @@ class UlstuParser:
                         # Определяем часть по URL
                         if 'Часть%201' in group_url or 'Часть 1' in group_url:
                             actual_group_number = url_group_number
-                        else:
+                        elif 'Часть%202' in group_url or 'Часть 2' in group_url:
                             actual_group_number = url_group_number + 115
+                        else:  # Часть 3
+                            actual_group_number = url_group_number + 234
 
                         group_name = self.get_group_name(actual_group_number)
                     else:
@@ -168,14 +172,15 @@ class UlstuParser:
                 # Определяем часть по URL
                 if 'Часть%201' in group_url or 'Часть 1' in group_url:
                     actual_group_number = url_group_number
-                else:
+                elif 'Часть%202' in group_url or 'Часть 2' in group_url:
                     actual_group_number = url_group_number + 115
+                else:  # Часть 3
+                    actual_group_number = url_group_number + 234
 
                 group_name = self.get_group_name(actual_group_number)
             else:
                 group_name = "Неизвестная группа"
 
-            # Остальной код парсинга без изменений...
             week_number = "1"
 
             # Поиск номера недели

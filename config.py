@@ -14,10 +14,16 @@ SCHEDULE_PARTS = {
         'url_template': 'https://lk.ulstu.ru/timetable/shared/schedule/Часть%202%20–%20ФИСТ,%20ГФ/{}.html',
         'min_group': 116,
         'max_group': 234
+    },
+    3: {
+        'name': 'Часть 3 - ИАТУ, ИЭФ, ЗВФ ИННО',
+        'url_template': 'https://lk.ulstu.ru/timetable/shared/schedule/Часть%203%20–%20ИАТУ,%20ИЭФ%20(очная,%20очно-заочная,%20заочная%20формы%20обучения),%20ЗВФ%20ИННО%20(очно-заочная,%20заочная%20формы%20обучения)/{}.html',
+        'min_group': 235,
+        'max_group': 464
     }
 }
 MIN_GROUP_NUMBER = 1
-MAX_GROUP_NUMBER = 234
+MAX_GROUP_NUMBER = 464
 
 # Данные для авторизации на портале УлГТУ
 ULSTU_USERNAME = "a.gajfullin"
