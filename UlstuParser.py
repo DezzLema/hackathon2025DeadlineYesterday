@@ -53,15 +53,13 @@ class UlstuParser:
         if group_number in GROUPS_DICT:
             return GROUPS_DICT[group_number]
         else:
-            return f"Группа_{group_number}"  # Значение по умолчанию
+            return f"Группа_{group_number}"
 
     def find_group_number(self, group_name):
         """Находит номер группы по названию"""
-        # Прямой поиск по точному совпадению
         if group_name in GROUPS_REVERSE_DICT:
             return GROUPS_REVERSE_DICT[group_name]
 
-        # Поиск по частичному совпадению (без учета регистра)
         group_name_upper = group_name.upper()
         for name, number in GROUPS_REVERSE_DICT.items():
             if group_name_upper in name.upper():
@@ -70,7 +68,7 @@ class UlstuParser:
         return None
 
     def parse_all_groups(self):
-        """Парсит расписание всех групп от 1 до 119"""
+        """Парсит расписание всех групп"""
         if not self.logged_in:
             logging.error("❌ Не авторизован для парсинга")
             return {}
@@ -80,15 +78,14 @@ class UlstuParser:
         for group_number in range(MIN_GROUP_NUMBER, MAX_GROUP_NUMBER + 1):
             try:
                 group_url = self.get_group_url(group_number)
-                group_name = self.get_group_name(group_number)  # Используем реальное название
+                group_name = self.get_group_name(group_number)
                 logging.info(f"🔍 Парсим группу {group_number} ({group_name})...")
 
                 parsed_group_name, week_number, schedules = self.parse_group_schedule(group_url)
 
-                # Используем реальное название из словаря вместо распарсенного
                 if group_name and schedules:
                     all_groups_data[group_number] = {
-                        'name': group_name,  # Используем название из словаря
+                        'name': group_name,
                         'week': week_number,
                         'schedule': schedules,
                         'url': group_url
@@ -97,7 +94,6 @@ class UlstuParser:
                 else:
                     logging.warning(f"⚠️ Группа {group_number} ({group_name}): расписание не найдено")
 
-                # Небольшая задержка чтобы не перегружать сервер
                 import time
                 time.sleep(0.5)
 
@@ -108,9 +104,8 @@ class UlstuParser:
         return all_groups_data
 
     def parse_group_schedule(self, group_url):
-        """Парсит расписание группы УлГТУ - УЛУЧШЕННАЯ ВЕРСИЯ"""
+        """Парсит расписание группы УлГТУ"""
         if not self.logged_in:
-            # Получаем номер группы из URL и используем реальное название
             group_number = int(group_url.split('/')[-1].replace('.html', ''))
             group_name = self.get_group_name(group_number)
             return group_name, "1", []
@@ -122,42 +117,35 @@ class UlstuParser:
 
             if response.status_code != 200:
                 logging.warning(f"⚠️ Не удалось загрузить страницу: {response.status_code}")
-                # Получаем номер группы из URL и используем реальное название
                 group_number = int(group_url.split('/')[-1].replace('.html', ''))
                 group_name = self.get_group_name(group_number)
                 return group_name, "1", []
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Получаем номер группы из URL и используем реальное название
             group_number = int(group_url.split('/')[-1].replace('.html', ''))
             group_name = self.get_group_name(group_number)
-            week_number = "1"  # значение по умолчанию
+            week_number = "1"
 
-            # ИЩЕМ НОМЕР НЕДЕЛИ В ЗАГОЛОВКЕ
-            # Ищем заголовок с неделей
             week_elements = soup.find_all('font', {'color': '#ff00ff', 'face': 'Times New Roman', 'size': '6'})
             for element in week_elements:
                 text = element.get_text(strip=True)
                 if 'Неделя:' in text:
-                    # Извлекаем номер недели (например: "10-я", "11-я")
                     week_match = re.search(r'Неделя:\s*(\d+)-я', text)
                     if week_match:
                         week_number = week_match.group(1)
                         logging.info(f"📅 Найдена неделя: {week_number}")
                     break
 
-            # Если не нашли через элементы, ищем по тексту
             if week_number == "1":
                 week_texts = soup.find_all(text=re.compile(r'Неделя:'))
                 for text in week_texts:
                     week_match = re.search(r'Неделя:\s*(\d+)-я', str(text))
                     if week_match:
                         week_number = week_match.group(1)
-                        logging.info(f"📅 Найдена неделя через текстовый поиск: {week_number}")
+                        logging.info(f"📅 Найдена неделя через текст: {week_number}")
                         break
 
-            # Ищем все таблицы
             tables = soup.find_all("table", {"border": "1"})
             if not tables:
                 tables = soup.find_all("table")
@@ -168,12 +156,10 @@ class UlstuParser:
             day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
 
             if tables:
-                # Берем первую таблицу (первая неделя)
                 table = tables[0]
                 rows = table.find_all("tr")
                 logging.info(f"🔍 Найдено строк в таблице: {len(rows)}")
 
-                # Пропускаем заголовки (первые 2 строки)
                 for row_idx in range(2, min(len(rows), 8)):
                     row = rows[row_idx]
                     cells = row.find_all(["td", "th"])
@@ -181,19 +167,14 @@ class UlstuParser:
                     if len(cells) < 2:
                         continue
 
-                    # Определяем день недели
                     day_name = day_names[row_idx - 2] if (row_idx - 2) < len(day_names) else f"День{row_idx - 1}"
 
-                    # Обрабатываем ячейки с парами (начиная со второй ячейки)
                     for cell_idx in range(1, min(len(cells), 9)):
                         cell = cells[cell_idx]
                         pair_number = cell_idx
-
-                        # Получаем текст ячейки
                         cell_text = cell.get_text(separator='\n', strip=True)
 
                         if cell_text and cell_text not in ['', '-', ' ']:
-                            # Парсим содержимое ячейки
                             lesson_data = self._parse_cell_content(cell_text)
                             if lesson_data:
                                 schedule_item = {
@@ -206,30 +187,26 @@ class UlstuParser:
                                     'classroom': lesson_data['classroom']
                                 }
                                 schedules.append(schedule_item)
-                                logging.info(f"✅ Добавлено: {day_name} {pair_number} пара - {lesson_data['subject']}")
+                                logging.info(f"✅ {day_name} {pair_number} пара - {lesson_data['subject']}")
 
-            logging.info(f"📊 Итог: {len(schedules)} занятий для группы {group_name}, неделя {week_number}")
+            logging.info(f"📊 Итог: {len(schedules)} занятий для {group_name}, неделя {week_number}")
             return group_name, week_number, schedules
 
         except Exception as e:
             logging.error(f"❌ Ошибка парсинга: {e}")
-            # Получаем номер группы из URL и используем реальное название
             group_number = int(group_url.split('/')[-1].replace('.html', ''))
             group_name = self.get_group_name(group_number)
             return group_name, "1", []
 
     def _parse_cell_content(self, cell_text):
-        """Парсит содержимое ячейки с занятием - ОБНОВЛЕННАЯ ВЕРСИЯ для аудиторий"""
+        """Парсит содержимое ячейки с занятием — с поддержкой аудиторий 3_2, 3-312, 3-ДОТ"""
         try:
             lines = [line.strip() for line in cell_text.split('\n') if line.strip()]
-
             if not lines:
                 return None
 
-            # Первая строка - предмет и тип
             first_line = lines[0].lower()
 
-            # Определяем тип занятия
             lesson_type = "Лекция"
             if 'пр.' in first_line or 'практ' in first_line:
                 lesson_type = "Практика"
@@ -242,39 +219,37 @@ class UlstuParser:
             elif 'экз.' in first_line:
                 lesson_type = "Экзамен"
 
-            # Извлекаем название предмета (убираем сокращения типа)
             subject = lines[0]
             for abbrev in ['лек.', 'пр.', 'лаб.', 'сем.', 'зач.', 'экз.']:
                 if abbrev in subject.lower():
                     subject = subject.lower().replace(abbrev, '').strip().capitalize()
                     break
 
-            # Преподаватель и аудитория
             teacher = "Не указан"
             classroom = "Не указана"
 
-            # ОБНОВЛЕННЫЙ ПАРСИНГ: ищем формат "Фамилия И О номер_аудитории"
+            # Поддерживаем все форматы: 3_2, 3-312, 3-ДОТ, ауд. 3_1 и т.д.
             if len(lines) > 1:
                 teacher_line = lines[1]
 
-                # Паттерн для поиска формата "Фамилия И О номер_аудитории"
-                # Пример: "Лапшов Ю А 3-312"
-                classroom_pattern = r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+([А-ЯЁ]\s+[А-ЯЁ])\s+([\d\-]+)$'
-                classroom_match = re.search(classroom_pattern, teacher_line)
+                classroom_pattern = (
+                    r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+'  # Фамилия Имя
+                    r'([А-ЯЁ]\s*[А-ЯЁ])\s+'  # Инициалы
+                    r'((?:\d+[\-_][\dА-ЯA-Zа-яa-z]+)|(?:\d+\s*-\s*ДОТ)|(?:\d+_ДОТ)|(?:\d+\s*ДОТ))$'  # Поддержка 6-НБ8
+                )
+                classroom_match = re.search(classroom_pattern, teacher_line, re.IGNORECASE)
 
                 if classroom_match:
-                    # Нашли формат с аудиторией в конце
-                    teacher_name = classroom_match.group(1)  # Фамилия
-                    initials = classroom_match.group(2)  # Инициалы
-                    room_number = classroom_match.group(3)  # Номер аудитории
+                    teacher_name = classroom_match.group(1)
+                    initials = classroom_match.group(2)
+                    room_number = classroom_match.group(3).replace(' ', '')
 
                     teacher = f"{teacher_name} {initials}"
-                    classroom = f"ауд. {room_number}"
+                    classroom = f"ауд. {room_number.upper()}"
 
-                    logging.info(f"🎯 Найдена аудитория в формате ФИО+аудитория: {teacher} -> {classroom}")
-
+                    logging.info(f"🎯 Найдена аудитория: {teacher} -> {classroom}")
                 else:
-                    # Старый метод поиска аудитории
+                    # Проверяем просто "ауд. ..." без ФИО
                     old_classroom_match = re.search(r'ауд\.?\s*([^\s,\n]+)', teacher_line, re.IGNORECASE)
                     if old_classroom_match:
                         classroom = f"ауд. {old_classroom_match.group(1)}"
@@ -282,20 +257,15 @@ class UlstuParser:
                     else:
                         teacher = teacher_line
 
-            # Дополнительная проверка в третьей строке
             if len(lines) > 2 and classroom == "Не указана":
                 third_line = lines[2]
-                # Проверяем формат "Фамилия И О номер_аудитории" в третьей строке
-                classroom_pattern = r'([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)*)\s+([А-ЯЁ]\s+[А-ЯЁ])\s+([\d\-]+)$'
-                classroom_match = re.search(classroom_pattern, third_line)
-
+                classroom_match = re.search(classroom_pattern, third_line, re.IGNORECASE)
                 if classroom_match:
                     teacher_name = classroom_match.group(1)
                     initials = classroom_match.group(2)
-                    room_number = classroom_match.group(3)
-
+                    room_number = classroom_match.group(3).replace(' ', '')
                     teacher = f"{teacher_name} {initials}"
-                    classroom = f"ауд. {room_number}"
+                    classroom = f"ауд. {room_number.upper()}"
                     logging.info(f"🎯 Найдена аудитория в 3-й строке: {teacher} -> {classroom}")
                 elif 'ауд.' in third_line.lower():
                     classroom = third_line
@@ -312,17 +282,14 @@ class UlstuParser:
             return None
 
     def get_schedule_image(self, group_url):
-        """Получает расписание и создает изображение"""
         group_name, week_number, schedules = self.parse_group_schedule(group_url)
         return self.image_generator.create_schedule_image(group_name, week_number, schedules)
 
     def get_schedule_image_by_number(self, group_number):
-        """Получает расписание по номеру группы и создает изображение"""
         group_url = self.get_group_url(group_number)
         return self.get_schedule_image(group_url)
 
     def get_schedule_image_by_name(self, group_name):
-        """Получает расписание по названию группы и создает изображение"""
         group_number = self.find_group_number(group_name)
         if group_number:
             return self.get_schedule_image_by_number(group_number)

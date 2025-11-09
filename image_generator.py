@@ -40,8 +40,11 @@ class ScheduleImageGenerator:
         height = 720
         margin = 15
         day_column_height = 93  # Высота колонки дня
-        pair_column_width = 140  # Ширина колонки пары
+        pair_column_width = 149  # Ширина колонки пары
         time_row_height = 40  # Высота строки с временем
+
+        # УЗКАЯ КОЛОНКА ДЛЯ ДНЕЙ НЕДЕЛИ
+        day_column_width = 60  # Уменьшили ширину колонки дней
 
         img = Image.new('RGB', (width, height), color='#1a1a1a')
         draw = ImageDraw.Draw(img)
@@ -66,7 +69,6 @@ class ScheduleImageGenerator:
 
         # Дни недели (теперь по вертикали слева)
         days = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"]
-        day_column_width = 120  # Ширина колонки дней
 
         # Заголовок дней
         day_header_y = y_position
@@ -94,12 +96,12 @@ class ScheduleImageGenerator:
         for day_idx, day_name in enumerate(days):
             day_y = y_position + day_idx * day_column_height
 
-            # Ячейка дня
+            # Ячейка дня (УЗКАЯ)
             draw.rectangle([margin, day_y, margin + day_column_width, day_y + day_column_height],
                            fill='#2d2d2d')
 
-            # Название дня (вертикально)
-            short_day = day_name[:3]  # Сокращаем для вертикального отображения
+            # Название дня (вертикально) - используем сокращенные названия
+            short_day = day_name  # Уже короткие: ПН, ВТ, СР и т.д.
             draw.text((margin + day_column_width // 2, day_y + day_column_height // 2), short_day,
                       fill='white', font=self.bob_font, anchor="mm")
 
