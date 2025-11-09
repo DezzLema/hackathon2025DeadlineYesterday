@@ -19,7 +19,7 @@ SCHEDULE_PARTS = {
         'name': 'Часть 3 – ИАТУ, ИЭФ, ЗВФ ИННО',
         'min_group': 235,
         'max_group': 464,
-        'url_template': 'https://lk.ulstu.ru/timetable/shared/schedule/Часть%203%20–%20ИАТУ,%20ИЭФ,%20ЗВФ%20ИННО/{}.html'
+        'url_template': 'https://lk.ulstu.ru/timetable/shared/schedule/Часть%203%20–%20ИАТУ,%20ИЭФ%20(очная,%20очно-заочная,%20заочная%20формы%20обучения),%20ЗВФ%20ИННО%20(очно-заочная,%20заочная%20формы%20обучения)/{}.html'
     },
     4: {
         'name': 'Часть 4 – КЭИ',
