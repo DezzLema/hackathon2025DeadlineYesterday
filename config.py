@@ -26,10 +26,16 @@ SCHEDULE_PARTS = {
         'min_group': 465,
         'max_group': 562,
         'url_template': 'https://lk.ulstu.ru/timetable/shared/schedule/Часть%204%20–%20КЭИ/{}.html'
+    },
+    5: {
+        'name': 'Часть 5 – СФ',
+        'min_group': 563,
+        'max_group': 595,
+        'url_template': 'https://lk.ulstu.ru/timetable/shared/schedule/Часть%205%20–%20СФ/{}.html'
     }
 }
 MIN_GROUP_NUMBER = 1
-MAX_GROUP_NUMBER = 562
+MAX_GROUP_NUMBER = 595
 
 # Данные для авторизации на портале УлГТУ
 ULSTU_USERNAME = "a.gajfullin"

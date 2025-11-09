@@ -72,12 +72,15 @@ class UlstuParser:
             url_group_number = group_number - 115  # 116-234 → 1-119
         elif part_id == 3:
             url_group_number = group_number - 234  # 235-464 → 1-230
-        else:  # part_id == 4
+        elif part_id == 4:
             url_group_number = group_number - 464  # 465-562 → 1-98
+        else:  # part_id == 5
+            url_group_number = group_number - 562  # 563-595 → 1-33
 
         url = part_data['url_template'].format(url_group_number)
         logging.info(f"🔗 Формирую URL для группы {group_number}: {url}")
         return url
+
 
     def get_group_name(self, group_number):
         """Получает реальное название группы из словаря"""
@@ -158,6 +161,8 @@ class UlstuParser:
                             actual_group_number = url_group_number + 234
                         elif 'Часть%204' in group_url or 'Часть 4' in group_url:
                             actual_group_number = url_group_number + 464
+                        elif 'Часть%205' in group_url or 'Часть 5' in group_url:
+                            actual_group_number = url_group_number + 562
                         else:
                             actual_group_number = url_group_number
 
@@ -184,6 +189,8 @@ class UlstuParser:
                     actual_group_number = url_group_number + 234
                 elif 'Часть%204' in group_url or 'Часть 4' in group_url:
                     actual_group_number = url_group_number + 464
+                elif 'Часть%205' in group_url or 'Часть 5' in group_url:
+                    actual_group_number = url_group_number + 562
                 else:
                     actual_group_number = url_group_number
 
@@ -293,6 +300,8 @@ class UlstuParser:
                         actual_group_number = url_group_number + 234
                     elif 'Часть%204' in group_url or 'Часть 4' in group_url:
                         actual_group_number = url_group_number + 464
+                    elif 'Часть%205' in group_url or 'Часть 5' in group_url:
+                        actual_group_number = url_group_number + 562
                     else:
                         actual_group_number = url_group_number
 
