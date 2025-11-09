@@ -70,8 +70,10 @@ class UlstuParser:
             url_group_number = group_number  # 1-115
         elif part_id == 2:
             url_group_number = group_number - 115  # 116-234 → 1-119
-        else:  # part_id == 3
+        elif part_id == 3:
             url_group_number = group_number - 234  # 235-464 → 1-230
+        else:  # part_id == 4
+            url_group_number = group_number - 464  # 465-562 → 1-98
 
         url = part_data['url_template'].format(url_group_number)
         logging.info(f"🔗 Формирую URL для группы {group_number}: {url}")
@@ -152,8 +154,12 @@ class UlstuParser:
                             actual_group_number = url_group_number
                         elif 'Часть%202' in group_url or 'Часть 2' in group_url:
                             actual_group_number = url_group_number + 115
-                        else:  # Часть 3
+                        elif 'Часть%203' in group_url or 'Часть 3' in group_url:
                             actual_group_number = url_group_number + 234
+                        elif 'Часть%204' in group_url or 'Часть 4' in group_url:
+                            actual_group_number = url_group_number + 464
+                        else:
+                            actual_group_number = url_group_number
 
                         group_name = self.get_group_name(actual_group_number)
                     else:
@@ -174,8 +180,12 @@ class UlstuParser:
                     actual_group_number = url_group_number
                 elif 'Часть%202' in group_url or 'Часть 2' in group_url:
                     actual_group_number = url_group_number + 115
-                else:  # Часть 3
+                elif 'Часть%203' in group_url or 'Часть 3' in group_url:
                     actual_group_number = url_group_number + 234
+                elif 'Часть%204' in group_url or 'Часть 4' in group_url:
+                    actual_group_number = url_group_number + 464
+                else:
+                    actual_group_number = url_group_number
 
                 group_name = self.get_group_name(actual_group_number)
             else:
@@ -277,8 +287,14 @@ class UlstuParser:
 
                     if 'Часть%201' in group_url or 'Часть 1' in group_url:
                         actual_group_number = url_group_number
-                    else:
+                    elif 'Часть%202' in group_url or 'Часть 2' in group_url:
                         actual_group_number = url_group_number + 115
+                    elif 'Часть%203' in group_url or 'Часть 3' in group_url:
+                        actual_group_number = url_group_number + 234
+                    elif 'Часть%204' in group_url or 'Часть 4' in group_url:
+                        actual_group_number = url_group_number + 464
+                    else:
+                        actual_group_number = url_group_number
 
                     group_name = self.get_group_name(actual_group_number)
                 else:
