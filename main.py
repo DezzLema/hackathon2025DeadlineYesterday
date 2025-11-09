@@ -22,6 +22,9 @@ parser = UlstuParser()
 # Хранилище для статуса пользователей
 user_status = {}
 
+# Хранилище для ожидания ввода названия группы
+awaiting_group_input = {}
+
 
 async def send_table_image(chat_id):
     """Отправляет существующий PNG файл с расписанием в чат"""
@@ -65,6 +68,7 @@ async def send_table_image(chat_id):
         import traceback
         logging.error(f"❌ Трассировка: {traceback.format_exc()}")
         await bot.send_message(chat_id=chat_id, text="❌ Ошибка при отправке расписания")
+
 
 async def generate_and_send_table(chat_id, group_number=None):
     """Генерирует расписание и отправляет его в чат"""
@@ -130,6 +134,9 @@ async def process_role_selection(chat_id, role):
     """Обрабатывает выбор роли пользователем"""
     user_status[chat_id] = role
 
+    if chat_id in awaiting_group_input:
+        del awaiting_group_input[chat_id]
+
     if role == "student":
         # Вместо отправки текста отправляем меню с кнопками
         await send_student_menu(chat_id)
@@ -163,6 +170,7 @@ async def process_role_selection(chat_id, role):
                  "Для справки используйте `/help`"
         )
 
+
 @dp.message_callback()
 async def handle_callback(event: MessageCallback):
     """Обработка нажатий на callback-кнопки"""
@@ -178,12 +186,26 @@ async def handle_callback(event: MessageCallback):
         elif payload == "student_menu":
             await send_student_menu(chat_id)
         elif payload == "student_schedule":
-            await generate_and_send_table(chat_id)
+            # Устанавливаем состояние ожидания ввода названия группы
+            awaiting_group_input[chat_id] = True
+            await bot.send_message(
+                chat_id=chat_id,
+                text="📝 *Введите название группы*\n\n"
+                     "Примеры:\n"
+                     "• `ИВТИИбд-32`\n"
+                     "• `ПИбд-31`\n"
+                     "• `ИСТбд-41`\n\n"
+                     "💡 *Подсказка:* Используйте `/groups` для просмотра всех групп "
+                     "или `/search` для поиска по названию"
+            )
         elif payload == "student_events":
             await send_events_info(chat_id)
         elif payload == "student_certificate":
             await send_certificate_info(chat_id)
         elif payload == "back_to_main":
+            # Сбрасываем состояние при возврате в главное меню
+            if chat_id in awaiting_group_input:
+                del awaiting_group_input[chat_id]
             await send_welcome_message(chat_id)
         else:
             await bot.send_message(
@@ -200,23 +222,13 @@ async def handle_callback(event: MessageCallback):
             )
         except:
             pass
-    except Exception as e:
-        logging.error(f"❌ Ошибка в обработчике callback: {e}")
-        # Отправляем сообщение об ошибке, если можем получить chat_id
-        try:
-            await bot.send_message(
-                chat_id=event.message.recipient.chat_id,
-                text="❌ Ошибка при обработке выбора"
-            )
-        except:
-            pass
 
 
 async def send_student_menu(chat_id):
     """Отправляет меню для студентов с тремя кнопками"""
     builder = InlineKeyboardBuilder()
     builder.row(
-        CallbackButton(text="📅 Расписание", payload="student_schedule"),
+        CallbackButton(text="📅 Получить расписание", payload="student_schedule"),
     )
     builder.row(
         CallbackButton(text="🎭 Мероприятия", payload="student_events"),
@@ -233,7 +245,6 @@ async def send_student_menu(chat_id):
         text="🎓 *Студенческое меню*\n\nВыберите нужный раздел:",
         attachments=[builder.as_markup()]
     )
-
 
 async def send_events_info(chat_id):
     """Отправляет информацию о мероприятиях"""
@@ -260,13 +271,25 @@ async def student_command(event: MessageCreated):
     try:
         chat_id = event.message.recipient.chat_id
         user_status[chat_id] = "student"
+
+        # Сбрасываем состояние ожидания ввода
+        if chat_id in awaiting_group_input:
+            del awaiting_group_input[chat_id]
+
         await send_student_menu(chat_id)
 
         # Отправляем дополнительную информацию
         info_text = (
             "👨‍🎓 *Роль студента активирована!*\n\n"
-            "Используйте кнопки выше для быстрого доступа к функциям "
-            "или команды из меню помощи `/help`"
+            "*📚 Как получить расписание:*\n"
+            "1. Нажмите кнопку '📅 Расписание'\n"
+            "2. Введите название группы\n"
+            "3. Получите расписание!\n\n"
+            "*💡 Примеры названий групп:*\n"
+            "• ИВТИИбд-32\n"
+            "• ПИбд-31\n"
+            "• ИСТбд-41\n\n"
+            "Используйте кнопки выше для быстрого доступа к функциям!"
         )
         await event.message.answer(info_text)
 
@@ -309,7 +332,13 @@ async def bot_started(event: BotStarted):
 @dp.message_created(Command('start'))
 async def hello(event: MessageCreated):
     try:
-        await send_welcome_message(event.message.recipient.chat_id)
+        chat_id = event.message.recipient.chat_id
+
+        # Сбрасываем состояние ожидания ввода
+        if chat_id in awaiting_group_input:
+            del awaiting_group_input[chat_id]
+
+        await send_welcome_message(chat_id)
     except Exception as e:
         await event.message.answer("❌ Ошибка при запуске")
 
@@ -471,7 +500,7 @@ async def search_command(event: MessageCreated):
             return
 
         # Получаем текст команды из event
-        command_text = event.message.content.text.strip()
+        command_text = event.message.body.text.strip()
         parts = command_text.split()
 
         if len(parts) < 2:
@@ -583,13 +612,76 @@ async def help_command(event: MessageCreated):
 @dp.message_created()
 async def handle_message(event: MessageCreated):
     try:
-        text = event.message.content.text.strip()
-        if text and not text.startswith('/'):
+        chat_id = event.message.recipient.chat_id
+        text = event.message.body.text.strip()
+
+        # Проверяем, ожидаем ли мы ввод названия группы от этого пользователя
+        if chat_id in awaiting_group_input and awaiting_group_input[chat_id]:
+            # Сбрасываем состояние ожидания
+            del awaiting_group_input[chat_id]
+
+            if not text:
+                await event.message.answer(
+                    "❌ Вы не ввели название группы.\n\n"
+                    "Попробуйте снова или используйте:\n"
+                    "• `/groups` - список всех групп\n"
+                    "• `/search` - поиск по названию"
+                )
+                return
+
+            # Проверяем, что пользователь студент
+            if user_status.get(chat_id) != "student":
+                await event.message.answer(
+                    "❌ Эта функция доступна только для студентов.\n"
+                    "Пожалуйста, сначала выберите роль студента с помощью /start"
+                )
+                return
+
+            # Ищем группу по введенному названию
+            await event.message.answer(f"🔍 Ищу группу: {text}")
+
+            group_number = parser.find_group_number(text)
+
+            if group_number:
+                found_group_name = parser.get_group_name(group_number)
+                await event.message.answer(f"✅ Найдена группа: {found_group_name}")
+                await generate_and_send_table(chat_id, group_number)
+            else:
+                # Предлагаем похожие группы
+                similar_groups = []
+                text_upper = text.upper()
+
+                for num, name in GROUPS_DICT.items():
+                    if text_upper in name.upper():
+                        similar_groups.append((num, name))
+
+                if similar_groups:
+                    groups_text = "❌ Группа не найдена, но есть похожие:\n\n"
+                    for num, name in similar_groups[:5]:
+                        groups_text += f"• {name}\n"
+                    groups_text += f"\n💡 *Введите точное название группы из списка выше*"
+                    await event.message.answer(groups_text)
+                else:
+                    await event.message.answer(
+                        f"❌ Группа '{text}' не найдена.\n\n"
+                        f"📋 *Что можно сделать:*\n"
+                        f"• Используйте `/groups` для просмотра всех групп\n"
+                        f"• Используйте `/search {text}` для поиска\n"
+                        f"• Проверьте правильность написания"
+                    )
+
+        elif text and not text.startswith('/'):
+            # Обычное сообщение без команды
             await event.message.answer(
-                "🤔 Используйте /start для выбора роли или /help для справки"
+                "🤔 Используйте /start для выбора роли или /help для справки\n\n"
+                "*📚 Для студентов:*\n"
+                "• Нажмите кнопку '📅 Расписание' для получения расписания\n"
+                "• `/groups` - список всех групп\n"
+                "• `/search` - поиск по названию"
             )
+
     except Exception as e:
-        logging.error(f"Ошибка: {e}")
+        logging.error(f"Ошибка в обработчике сообщений: {e}")
 
 
 async def main():
