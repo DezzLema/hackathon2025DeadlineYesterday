@@ -74,12 +74,23 @@ async def generate_and_send_table(chat_id, group_number=None):
     """Генерирует расписание и отправляет его в чат"""
     try:
         if group_number:
-            await bot.send_message(chat_id=chat_id, text=f"🔄 Генерирую расписание для группы {group_number}...")
+            group_name = parser.get_group_name(group_number)
+            await bot.send_message(chat_id=chat_id, text=f"🔄 Генерирую расписание для группы {group_name}...")
+
+            # Получаем информацию о части расписания
+            part_id, part_data = parser.get_schedule_part_for_group(group_number)
+            group_url = parser.get_group_url(group_number)
+
+            # Проверяем доступность URL
+            await bot.send_message(chat_id=chat_id, text=f"📁 Часть расписания: {part_id}")
+            await bot.send_message(chat_id=chat_id, text=f"🔗 Проверяю доступность расписания...")
+
             schedule_image = parser.get_schedule_image_by_number(group_number)
             filename = f"schedule_group_{group_number}.png"
         else:
             await bot.send_message(chat_id=chat_id, text="🔄 Генерирую расписание...")
-            schedule_image = parser.get_schedule_image(parser.get_group_url(61))  # группа по умолчанию
+            # Используем группу ИВТИИбд-31 (номер 175) как рабочую по умолчанию
+            schedule_image = parser.get_schedule_image_by_number(175)
             filename = "schedule.png"
 
         # Полный путь к файлу в папке schedule
@@ -99,9 +110,10 @@ async def generate_and_send_table(chat_id, group_number=None):
             filename=filename
         )
 
+        group_display_name = parser.get_group_name(group_number) if group_number else "ИВТИИбд-31"
         await bot.send_message(
             chat_id=chat_id,
-            text="📅 Ваше расписание",
+            text=f"📅 Расписание группы {group_display_name}",
             attachments=[input_media]
         )
 
@@ -444,6 +456,8 @@ async def group_command(event: MessageCreated):
         await event.message.answer("❌ Ошибка при поиске группы")
 
 
+# handlers.py - ОБНОВИТЬ КОМАНДУ /groups ДЛЯ ОТОБРАЖЕНИЯ ВСЕХ ГРУПП
+
 @dp.message_created(Command('groups'))
 async def groups_command(event: MessageCreated):
     """Обработчик команды /groups - информация о доступных группах"""
@@ -461,6 +475,7 @@ async def groups_command(event: MessageCreated):
         groups_info = (
             f"📚 *Доступные группы:*\n\n"
             f"• Всего групп: {len(GROUPS_DICT)}\n"
+            f"• Части расписания: {len(SCHEDULE_PARTS)}\n"
             f"• Формат: Факультет-Курс (например: ИВТИИбд-32)\n\n"
             f"*Команды:*\n"
             f"`/group <название>` - расписание конкретной группы\n"
@@ -469,13 +484,13 @@ async def groups_command(event: MessageCreated):
             f"*Примеры:*\n"
             f"`/group ИВТИИбд-32`\n"
             f"`/group ПИбд-31`\n"
-            f"`/group ИСТбд-41`\n\n"
+            f"`/group Рбд-11`\n\n"
             f"📋 *Популярные группы:*\n"
             f"• ИВТИИбд-31, ИВТИИбд-32\n"
             f"• ПИбд-31, ПИбд-32, ПИбд-33\n"
             f"• ИСТбд-31, ИСТбд-32\n"
-            f"• ИСЭбд-31\n"
-            f"• ПСбд-31"
+            f"• Рбд-11, РТбд-21\n"
+            f"• Эбд-31, ЭАбд-41"
         )
 
         await event.message.answer(groups_info)
@@ -609,6 +624,8 @@ async def help_command(event: MessageCreated):
     await event.message.answer(help_text)
 
 
+# main.py - ОБНОВИТЬ ОБРАБОТЧИК ВВОДА НАЗВАНИЯ ГРУППЫ
+
 @dp.message_created()
 async def handle_message(event: MessageCreated):
     try:
@@ -644,7 +661,12 @@ async def handle_message(event: MessageCreated):
 
             if group_number:
                 found_group_name = parser.get_group_name(group_number)
-                await event.message.answer(f"✅ Найдена группа: {found_group_name}")
+                # Определяем часть расписания
+                part_id, part_data = parser.get_schedule_part_for_group(group_number)
+                await event.message.answer(
+                    f"✅ Найдена группа: {found_group_name}\n"
+                    f"📁 Часть расписания: {part_id}"
+                )
                 await generate_and_send_table(chat_id, group_number)
             else:
                 # Предлагаем похожие группы

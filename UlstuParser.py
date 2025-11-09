@@ -3,7 +3,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 import logging
-from config import SCHEDULE_BASE_URL, MIN_GROUP_NUMBER, MAX_GROUP_NUMBER
+from config import SCHEDULE_BASE_URL, MIN_GROUP_NUMBER, MAX_GROUP_NUMBER, SCHEDULE_PARTS
 from groups_dict import GROUPS_DICT, GROUPS_REVERSE_DICT  # Добавляем импорт обратного словаря
 
 
@@ -13,6 +13,15 @@ class UlstuParser:
         self.base_url = "https://lk.ulstu.ru"
         self.logged_in = False
         self.image_generator = ScheduleImageGenerator()
+        self.image_generator = ScheduleImageGenerator()
+
+    def get_schedule_part_for_group(self, group_number):
+        """Определяет к какой части расписания принадлежит группа"""
+        for part_id, part_data in SCHEDULE_PARTS.items():
+            if part_data['min_group'] <= group_number <= part_data['max_group']:
+                return part_id, part_data
+        # Если группа не найдена в частях, используем часть 2 по умолчанию
+        return 2, SCHEDULE_PARTS[2]
 
     def login(self, username, password):
         """Авторизация на портале УлГТУ"""
@@ -32,6 +41,14 @@ class UlstuParser:
                 else:
                     logging.info("✅ Авторизация успешна!")
                     self.logged_in = True
+
+                    # Проверяем реальную авторизацию, делая тестовый запрос
+                    test_url = "https://lk.ulstu.ru/timetable/shared/schedule/Часть%202%20–%20ФИСТ,%20ГФ/60.html"
+                    test_response = self.session.get(test_url)
+                    if test_response.status_code == 200 and "расписание" in test_response.text.lower():
+                        logging.info("✅ Авторизация подтверждена, доступ к расписанию есть")
+                    else:
+                        logging.warning("⚠️ Авторизация есть, но доступ к расписанию ограничен")
                     return True
             else:
                 logging.error(f"❌ Ошибка при авторизации: {response.status_code}")
@@ -42,11 +59,21 @@ class UlstuParser:
             return False
 
     def get_group_url(self, group_number):
-        """Генерирует URL для указанного номера группы"""
+        """Генерирует URL для указанного номера группы с учетом части расписания"""
         if group_number < MIN_GROUP_NUMBER or group_number > MAX_GROUP_NUMBER:
             raise ValueError(f"Номер группы должен быть от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}")
 
-        return f"{SCHEDULE_BASE_URL}/{group_number}.html"
+        part_id, part_data = self.get_schedule_part_for_group(group_number)
+
+        # Для части 1 используем прямую нумерацию, для части 2 - продолжаем с 1
+        if part_id == 1:
+            url_group_number = group_number
+        else:
+            url_group_number = group_number - 115  # Преобразуем 116-234 в 1-119
+
+        url = part_data['url_template'].format(url_group_number)
+        logging.info(f"🔗 Формирую URL для группы {group_number}: {url}")
+        return url
 
     def get_group_name(self, group_number):
         """Получает реальное название группы из словаря"""
@@ -105,11 +132,6 @@ class UlstuParser:
 
     def parse_group_schedule(self, group_url):
         """Парсит расписание группы УлГТУ"""
-        if not self.logged_in:
-            group_number = int(group_url.split('/')[-1].replace('.html', ''))
-            group_name = self.get_group_name(group_number)
-            return group_name, "1", []
-
         try:
             logging.info(f"🔍 Загружаю расписание: {group_url}")
             response = self.session.get(group_url)
@@ -117,16 +139,46 @@ class UlstuParser:
 
             if response.status_code != 200:
                 logging.warning(f"⚠️ Не удалось загрузить страницу: {response.status_code}")
-                group_number = int(group_url.split('/')[-1].replace('.html', ''))
-                group_name = self.get_group_name(group_number)
+                # Пытаемся извлечь номер группы из URL
+                try:
+                    group_number_match = re.search(r'/(\d+)\.html', group_url)
+                    if group_number_match:
+                        url_group_number = int(group_number_match.group(1))
+
+                        # Определяем часть по URL
+                        if 'Часть%201' in group_url or 'Часть 1' in group_url:
+                            actual_group_number = url_group_number
+                        else:
+                            actual_group_number = url_group_number + 115
+
+                        group_name = self.get_group_name(actual_group_number)
+                    else:
+                        group_name = "Неизвестная группа"
+                except:
+                    group_name = "Неизвестная группа"
                 return group_name, "1", []
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            group_number = int(group_url.split('/')[-1].replace('.html', ''))
-            group_name = self.get_group_name(group_number)
+            # Извлекаем номер группы из URL для определения реального номера
+            group_number_match = re.search(r'/(\d+)\.html', group_url)
+            if group_number_match:
+                url_group_number = int(group_number_match.group(1))
+
+                # Определяем часть по URL
+                if 'Часть%201' in group_url or 'Часть 1' in group_url:
+                    actual_group_number = url_group_number
+                else:
+                    actual_group_number = url_group_number + 115
+
+                group_name = self.get_group_name(actual_group_number)
+            else:
+                group_name = "Неизвестная группа"
+
+            # Остальной код парсинга без изменений...
             week_number = "1"
 
+            # Поиск номера недели
             week_elements = soup.find_all('font', {'color': '#ff00ff', 'face': 'Times New Roman', 'size': '6'})
             for element in week_elements:
                 text = element.get_text(strip=True)
@@ -146,9 +198,22 @@ class UlstuParser:
                         logging.info(f"📅 Найдена неделя через текст: {week_number}")
                         break
 
+            # Поиск таблиц
             tables = soup.find_all("table", {"border": "1"})
             if not tables:
+                tables = soup.find_all("table", {"class": re.compile(r'table|schedule', re.I)})
+            if not tables:
                 tables = soup.find_all("table")
+
+            if not tables:
+                schedule_tables = []
+                all_tables = soup.find_all("table")
+                for table in all_tables:
+                    table_text = table.get_text().lower()
+                    if any(word in table_text for word in
+                           ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'пара', 'понедельник', 'вторник']):
+                        schedule_tables.append(table)
+                tables = schedule_tables
 
             logging.info(f"🔍 Найдено таблиц: {len(tables)}")
 
@@ -156,46 +221,65 @@ class UlstuParser:
             day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
 
             if tables:
-                table = tables[0]
-                rows = table.find_all("tr")
-                logging.info(f"🔍 Найдено строк в таблице: {len(rows)}")
+                for table_idx, table in enumerate(tables):
+                    logging.info(f"🔍 Анализирую таблицу {table_idx + 1}")
+                    rows = table.find_all("tr")
+                    logging.info(f"🔍 Найдено строк в таблице: {len(rows)}")
 
-                for row_idx in range(2, min(len(rows), 8)):
-                    row = rows[row_idx]
-                    cells = row.find_all(["td", "th"])
+                    for row_idx in range(2, min(len(rows), 8)):
+                        row = rows[row_idx]
+                        cells = row.find_all(["td", "th"])
 
-                    if len(cells) < 2:
-                        continue
+                        if len(cells) < 2:
+                            continue
 
-                    day_name = day_names[row_idx - 2] if (row_idx - 2) < len(day_names) else f"День{row_idx - 1}"
+                        day_name = day_names[row_idx - 2] if (row_idx - 2) < len(day_names) else f"День{row_idx - 1}"
 
-                    for cell_idx in range(1, min(len(cells), 9)):
-                        cell = cells[cell_idx]
-                        pair_number = cell_idx
-                        cell_text = cell.get_text(separator='\n', strip=True)
+                        for cell_idx in range(1, min(len(cells), 9)):
+                            cell = cells[cell_idx]
+                            pair_number = cell_idx
+                            cell_text = cell.get_text(separator='\n', strip=True)
 
-                        if cell_text and cell_text not in ['', '-', ' ']:
-                            lesson_data = self._parse_cell_content(cell_text)
-                            if lesson_data:
-                                schedule_item = {
-                                    'week': int(week_number),
-                                    'day': day_name,
-                                    'pair': pair_number,
-                                    'subject': lesson_data['subject'],
-                                    'type': lesson_data['type'],
-                                    'teacher': lesson_data['teacher'],
-                                    'classroom': lesson_data['classroom']
-                                }
-                                schedules.append(schedule_item)
-                                logging.info(f"✅ {day_name} {pair_number} пара - {lesson_data['subject']}")
+                            if cell_text and cell_text not in ['', '-', ' ']:
+                                lesson_data = self._parse_cell_content(cell_text)
+                                if lesson_data:
+                                    schedule_item = {
+                                        'week': int(week_number),
+                                        'day': day_name,
+                                        'pair': pair_number,
+                                        'subject': lesson_data['subject'],
+                                        'type': lesson_data['type'],
+                                        'teacher': lesson_data['teacher'],
+                                        'classroom': lesson_data['classroom']
+                                    }
+                                    schedules.append(schedule_item)
+                                    logging.info(f"✅ {day_name} {pair_number} пара - {lesson_data['subject']}")
+
+                    if schedules:
+                        break
 
             logging.info(f"📊 Итог: {len(schedules)} занятий для {group_name}, неделя {week_number}")
             return group_name, week_number, schedules
 
         except Exception as e:
             logging.error(f"❌ Ошибка парсинга: {e}")
-            group_number = int(group_url.split('/')[-1].replace('.html', ''))
-            group_name = self.get_group_name(group_number)
+            import traceback
+            logging.error(f"❌ Трассировка: {traceback.format_exc()}")
+            try:
+                group_number_match = re.search(r'/(\d+)\.html', group_url)
+                if group_number_match:
+                    url_group_number = int(group_number_match.group(1))
+
+                    if 'Часть%201' in group_url or 'Часть 1' in group_url:
+                        actual_group_number = url_group_number
+                    else:
+                        actual_group_number = url_group_number + 115
+
+                    group_name = self.get_group_name(actual_group_number)
+                else:
+                    group_name = "Неизвестная группа"
+            except:
+                group_name = "Неизвестная группа"
             return group_name, "1", []
 
     def _parse_cell_content(self, cell_text):
