@@ -11,6 +11,8 @@ from config import *
 
 logging.basicConfig(level=logging.INFO)
 
+SCHEDULE_DIR = "schedule"
+
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
 
@@ -25,8 +27,9 @@ async def send_table_image(chat_id):
     """Отправляет существующий PNG файл с расписанием в чат"""
     logging.info("🔍 Начало send_table_image")
     try:
-        # Проверяем, существует ли файл schedule.png
-        if not os.path.exists("schedule.png"):
+        # Проверяем файл в папке schedule
+        schedule_path = os.path.join(SCHEDULE_DIR, "schedule.png")
+        if not os.path.exists(schedule_path):
             logging.warning("❌ Файл schedule.png не найден")
             await bot.send_message(
                 chat_id=chat_id,
@@ -36,7 +39,7 @@ async def send_table_image(chat_id):
 
         logging.info("✅ Файл schedule.png найден")
 
-        with open("schedule.png", "rb") as file:
+        with open(schedule_path, "rb") as file:
             image_data = file.read()
 
         logging.info("✅ Файл прочитан в память")
@@ -63,7 +66,6 @@ async def send_table_image(chat_id):
         logging.error(f"❌ Трассировка: {traceback.format_exc()}")
         await bot.send_message(chat_id=chat_id, text="❌ Ошибка при отправке расписания")
 
-
 async def generate_and_send_table(chat_id, group_number=None):
     """Генерирует расписание и отправляет его в чат"""
     try:
@@ -76,13 +78,16 @@ async def generate_and_send_table(chat_id, group_number=None):
             schedule_image = parser.get_schedule_image(parser.get_group_url(61))  # группа по умолчанию
             filename = "schedule.png"
 
-        # Конвертируем в bytes и сохраняем
+        # Полный путь к файлу в папке schedule
+        file_path = os.path.join(SCHEDULE_DIR, filename)
+
+        # Конвертируем в bytes и сохраняем в папку schedule
         image_bytes_io = parser.image_generator.image_to_bytes(schedule_image)
-        with open(filename, "wb") as f:
+        with open(file_path, "wb") as f:
             f.write(image_bytes_io.getvalue())
 
         # Отправляем изображение
-        with open(filename, "rb") as file:
+        with open(file_path, "rb") as file:
             image_data = file.read()
 
         input_media = InputMediaBuffer(
@@ -96,7 +101,7 @@ async def generate_and_send_table(chat_id, group_number=None):
             attachments=[input_media]
         )
 
-        logging.info("✅ Расписание сгенерировано и отправлено")
+        logging.info(f"✅ Расписание сгенерировано и сохранено в {file_path}")
 
     except Exception as e:
         logging.error(f"❌ Ошибка при генерации расписания: {e}")
