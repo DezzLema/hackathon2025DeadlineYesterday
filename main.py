@@ -335,7 +335,7 @@ async def send_table_command(event: MessageCreated):
 
 @dp.message_created(Command('group'))
 async def group_command(event: MessageCreated):
-    """Обработчик команды /group <номер или название> - расписание конкретной группы"""
+    """Обработчик команды /group <название> - расписание конкретной группы"""
     try:
         chat_id = event.message.recipient.chat_id
 
@@ -353,54 +353,59 @@ async def group_command(event: MessageCreated):
 
         if len(parts) < 2:
             await event.message.answer(
-                "❌ Укажите номер или название группы\n"
-                f"Пример: `/group 61` или `/group ИВТИИбд-32`\n"
-                f"Доступные группы: от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
+                "❌ Укажите название группы\n"
+                f"Пример: `/group ИВТИИбд-32`\n\n"
+                f"📋 *Доступные группы:*\n"
+                f"• Используйте `/groups` для просмотра всех групп\n"
+                f"• Используйте `/search <часть названия>` для поиска"
             )
             return
 
-        group_input = ' '.join(parts[1:])
+        group_name = ' '.join(parts[1:]).strip()
 
-        # Пробуем распознать ввод как число
-        try:
-            group_number = int(group_input)
-            if group_number < MIN_GROUP_NUMBER or group_number > MAX_GROUP_NUMBER:
-                await event.message.answer(
-                    f"❌ Номер группы должен быть от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}"
-                )
-                return
+        if not group_name:
+            await event.message.answer(
+                "❌ Укажите название группы\n"
+                f"Пример: `/group ИВТИИбд-32`"
+            )
+            return
+
+        await event.message.answer(f"🔍 Ищу группу: {group_name}")
+
+        # Ищем группу по названию
+        group_number = parser.find_group_number(group_name)
+
+        if group_number:
+            found_group_name = parser.get_group_name(group_number)
+            await event.message.answer(f"✅ Найдена группа: {found_group_name}")
             await generate_and_send_table(chat_id, group_number)
+        else:
+            # Предлагаем похожие группы
+            similar_groups = []
+            group_name_upper = group_name.upper()
 
-        except ValueError:
-            # Если ввод не число, ищем по названию группы
-            group_name = group_input.upper()
-            group_number = parser.find_group_number(group_name)
+            for num, name in GROUPS_DICT.items():
+                if group_name_upper in name.upper():
+                    similar_groups.append((num, name))
 
-            if group_number:
-                await event.message.answer(f"🔍 Найдена группа: {parser.get_group_name(group_number)} (№{group_number})")
-                await generate_and_send_table(chat_id, group_number)
+            if similar_groups:
+                groups_text = "❌ Группа не найдена, но есть похожие:\n\n"
+                for num, name in similar_groups[:5]:  # Показываем первые 5
+                    groups_text += f"• {name} - используйте `/group {name}`\n"
+                groups_text += f"\n🔍 Или используйте `/search {group_name}` для расширенного поиска"
+                await event.message.answer(groups_text)
             else:
-                # Предлагаем похожие группы
-                similar_groups = []
-                for num, name in GROUPS_DICT.items():
-                    if group_name in name.upper():
-                        similar_groups.append((num, name))
-
-                if similar_groups:
-                    groups_text = "❌ Группа не найдена, но есть похожие:\n\n"
-                    for num, name in similar_groups[:5]:  # Показываем первые 5
-                        groups_text += f"• {name} - используйте `/group {num}`\n"
-                    await event.message.answer(groups_text)
-                else:
-                    await event.message.answer(
-                        f"❌ Группа '{group_input}' не найдена.\n"
-                        f"Используйте номер группы от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER} "
-                        f"или точное название группы"
-                    )
+                await event.message.answer(
+                    f"❌ Группа '{group_name}' не найдена.\n\n"
+                    f"📋 *Что можно сделать:*\n"
+                    f"• Используйте `/groups` для просмотра всех групп\n"
+                    f"• Используйте `/search {group_name}` для поиска по части названия\n"
+                    f"• Проверьте правильность написания названия группы"
+                )
 
     except Exception as e:
         logging.error(f"❌ Ошибка в обработчике /group: {e}")
-        await event.message.answer("❌ Ошибка при получении расписания группы")
+        await event.message.answer("❌ Ошибка при поиске группы")
 
 
 @dp.message_created(Command('groups'))
@@ -419,13 +424,22 @@ async def groups_command(event: MessageCreated):
 
         groups_info = (
             f"📚 *Доступные группы:*\n\n"
-            f"• Номера групп: от {MIN_GROUP_NUMBER} до {MAX_GROUP_NUMBER}\n"
-            f"• Всего групп: {MAX_GROUP_NUMBER - MIN_GROUP_NUMBER + 1}\n\n"
+            f"• Всего групп: {len(GROUPS_DICT)}\n"
+            f"• Формат: Факультет-Курс (например: ИВТИИбд-32)\n\n"
             f"*Команды:*\n"
-            f"`/group <номер или название>` - расписание конкретной группы\n"
+            f"`/group <название>` - расписание конкретной группы\n"
             f"`/table` - расписание группы по умолчанию\n"
-            f"`/search <название>` - поиск группы по названию\n\n"
-            f"*Пример:* `/group 61` или `/group ИВТИИбд-32`"
+            f"`/search <часть названия>` - поиск группы\n\n"
+            f"*Примеры:*\n"
+            f"`/group ИВТИИбд-32`\n"
+            f"`/group ПИбд-31`\n"
+            f"`/group ИСТбд-41`\n\n"
+            f"📋 *Популярные группы:*\n"
+            f"• ИВТИИбд-31, ИВТИИбд-32\n"
+            f"• ПИбд-31, ПИбд-32, ПИбд-33\n"
+            f"• ИСТбд-31, ИСТбд-32\n"
+            f"• ИСЭбд-31\n"
+            f"• ПСбд-31"
         )
 
         await event.message.answer(groups_info)
@@ -455,34 +469,39 @@ async def search_command(event: MessageCreated):
 
         if len(parts) < 2:
             await event.message.answer(
-                "❌ Укажите название группы для поиска\n"
-                "Пример: `/search ИВТ`"
+                "❌ Укажите часть названия группы для поиска\n"
+                "Пример: `/search ИВТ` или `/search ПИ`"
             )
             return
 
         search_query = ' '.join(parts[1:]).upper()
-        await event.message.answer(f"🔍 Ищу группы содержащие: {search_query}\n\n*Это может занять некоторое время...*")
+        await event.message.answer(f"🔍 Ищу группы содержащие: '{search_query}'")
 
-        # Парсим все группы для поиска
-        all_groups = parser.parse_all_groups()
-
+        # Ищем группы по названию в словаре
         found_groups = []
-        for group_num, group_data in all_groups.items():
-            if search_query in group_data['name'].upper():
-                found_groups.append((group_num, group_data['name']))
+        for group_num, group_name in GROUPS_DICT.items():
+            if search_query in group_name.upper():
+                found_groups.append((group_num, group_name))
 
         if found_groups:
-            groups_text = "🎯 *Найденные группы:*\n\n"
-            for group_num, group_name in found_groups[:10]:  # Показываем первые 10
-                groups_text += f"• {group_name} (№{group_num})\n"
-                groups_text += f"  Используйте: `/group {group_num}`\n\n"
+            groups_text = f"🎯 *Найдено групп ({len(found_groups)}):*\n\n"
+            for group_num, group_name in found_groups[:15]:  # Показываем первые 15
+                groups_text += f"• {group_name}\n"
+                groups_text += f"  Используйте: `/group {group_name}`\n\n"
 
-            if len(found_groups) > 10:
-                groups_text += f"*... и еще {len(found_groups) - 10} групп*"
+            if len(found_groups) > 15:
+                groups_text += f"*... и еще {len(found_groups) - 15} групп*\n"
+                groups_text += f"*Уточните запрос для более точного поиска*"
 
             await event.message.answer(groups_text)
         else:
-            await event.message.answer(f"❌ Группы содержащие '{search_query}' не найдены")
+            await event.message.answer(
+                f"❌ Группы содержащие '{search_query}' не найдены.\n\n"
+                f"💡 *Советы:*\n"
+                f"• Используйте `/groups` для просмотра всех групп\n"
+                f"• Попробуйте сокращенное название (ИВТ, ПИ, ИСТ и т.д.)\n"
+                f"• Проверьте правильность написания"
+            )
 
     except Exception as e:
         logging.error(f"❌ Ошибка в обработчике /search: {e}")
@@ -534,10 +553,14 @@ async def help_command(event: MessageCreated):
     if status == "student":
         help_text += "*📚 Команды для студентов:*\n"
         help_text += "/table - Расписание группы по умолчанию\n"
-        help_text += "/group <номер или название> - Расписание конкретной группы\n"
+        help_text += "/group <название> - Расписание конкретной группы\n"
         help_text += "/groups - Список доступных групп\n"
-        help_text += "/search <название> - Поиск группы по названию\n"
-        help_text += "/debug - Отладочная информация\n"
+        help_text += "/search <часть названия> - Поиск группы по названию\n"
+        help_text += "/debug - Отладочная информация\n\n"
+        help_text += "*💡 Примеры использования:*\n"
+        help_text += "`/group ИВТИИбд-32` - расписание группы ИВТИИбд-32\n"
+        help_text += "`/search ИВТ` - поиск всех групп с 'ИВТ' в названии\n"
+        help_text += "`/groups` - просмотр всех доступных групп"
     elif status == "abiturient":
         help_text += "*🎓 Команды для абитуриентов:*\n"
         help_text += "Информация о поступлении...\n"
