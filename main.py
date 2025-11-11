@@ -111,10 +111,17 @@ async def generate_and_send_table(chat_id, group_number=None):
         )
 
         group_display_name = parser.get_group_name(group_number) if group_number else "ИВТИИбд-31"
+
+        # Создаем клавиатуру с кнопкой "Назад"
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+        )
+
         await bot.send_message(
             chat_id=chat_id,
             text=f"📅 Расписание группы {group_display_name}",
-            attachments=[input_media]
+            attachments=[input_media, builder.as_markup()]
         )
 
         logging.info(f"✅ Расписание сгенерировано и сохранено в {file_path}")
@@ -216,6 +223,13 @@ async def handle_callback(event: MessageCallback):
         elif payload == "student_schedule":
             # Устанавливаем состояние ожидания ввода названия группы
             awaiting_group_input[chat_id] = True
+
+            # Создаем клавиатуру с кнопкой "Назад"
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+            )
+
             await bot.send_message(
                 chat_id=chat_id,
                 text="Введите название группы \n\n"
@@ -224,7 +238,8 @@ async def handle_callback(event: MessageCallback):
                      "• ПИбд-31 \n"
                      "• ИСТбд-41 \n\n"
                      "💡 Подсказка: Используйте /groups для просмотра всех групп "
-                     "или /search для поиска по названию"
+                     "или /search для поиска по названию",
+                attachments=[builder.as_markup()]
             )
         elif payload == "student_events":
             await send_events_info(chat_id)
@@ -235,6 +250,11 @@ async def handle_callback(event: MessageCallback):
             if chat_id in awaiting_group_input:
                 del awaiting_group_input[chat_id]
             await send_welcome_message(chat_id)
+        elif payload == "back_to_student_menu":
+            # Сбрасываем состояние при возврате в меню студента
+            if chat_id in awaiting_group_input:
+                del awaiting_group_input[chat_id]
+            await send_student_menu(chat_id)
         else:
             await bot.send_message(
                 chat_id=chat_id,
@@ -274,13 +294,24 @@ async def send_student_menu(chat_id):
         attachments=[builder.as_markup()]
     )
 
+
 async def send_events_info(chat_id):
     """Отправляет информацию о мероприятиях"""
     events_text = (
         "тут инфа о мероприятиях"
     )
 
-    await bot.send_message(chat_id=chat_id, text=events_text)
+    # Создаем клавиатуру с кнопкой "Назад"
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text=events_text,
+        attachments=[builder.as_markup()]
+    )
 
 
 async def send_certificate_info(chat_id):
@@ -289,7 +320,17 @@ async def send_certificate_info(chat_id):
         "Тут будет инфа о заказе справок. Ссылка на единое окно и инструкция"
     )
 
-    await bot.send_message(chat_id=chat_id, text=certificate_text)
+    # Создаем клавиатуру с кнопкой "Назад"
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text=certificate_text,
+        attachments=[builder.as_markup()]
+    )
 
 
 # Обработчики команд ролей (оставляем для ручного ввода команд)
