@@ -773,8 +773,16 @@ async def help_command(event: MessageCreated):
     else:
         help_text += "Выберите роль с помощью /start чтобы получить доступ к командам"
 
-    await event.message.answer(help_text)
+    # Создаем клавиатуру с кнопкой "Назад"
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="back_to_main"),
+    )
 
+    await event.message.answer(
+        text=help_text,
+        attachments=[builder.as_markup()]
+    )
 
 # main.py - ОБНОВИТЬ ОБРАБОТЧИК ВВОДА НАЗВАНИЯ ГРУППЫ
 
