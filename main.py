@@ -233,13 +233,10 @@ async def handle_callback(event: MessageCallback):
         elif payload == "student_schedule":
             # Устанавливаем состояние ожидания ввода названия группы
             awaiting_group_input[chat_id] = True
-
-            # Создаем клавиатуру с кнопкой "Назад"
             builder = InlineKeyboardBuilder()
             builder.row(
                 CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
             )
-
             await bot.send_message(
                 chat_id=chat_id,
                 text="Введите название группы \n\n"
@@ -251,27 +248,69 @@ async def handle_callback(event: MessageCallback):
                      "или /search для поиска по названию",
                 attachments=[builder.as_markup()]
             )
-        elif payload == "student_events":
-            await send_events_info(chat_id)
-        elif payload == "student_certificate":
-            await send_certificate_info(chat_id)
+        elif payload == "profkom_staff":
+            await send_profkom_staff_info(chat_id)
+        elif payload == "profkom_payments":
+            await send_profkom_payments_info(chat_id)
+        elif payload == "profkom_contacts":
+            await send_profkom_contacts_info(chat_id)
+        elif payload == "enter_group_name":
+            # Устанавливаем состояние ожидания ввода названия группы
+            awaiting_group_input[chat_id] = True
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="back_to_group_selection"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text="Введите название группы \n\n"
+                     "Примеры:\n"
+                     "• ИВТИИбд-32 \n"
+                     "• ПИбд-31 \n"
+                     "• ИСТбд-41 \n\n"
+                     "💡 Подсказка: Используйте /groups для просмотра всех групп "
+                     "или /search для поиска по названию",
+                attachments=[builder.as_markup()]
+            )
+        elif payload == "search_group":
+            # Отправляем информацию о поиске
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="back_to_group_selection"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text="🔍 *Поиск группы*\n\n"
+                     "Используйте команды:\n"
+                     "• `/groups` - список всех групп\n"
+                     "• `/search <название>` - поиск по названию\n\n"
+                     "Пример:\n"
+                     "`/search ИВТ` - найдет все группы с 'ИВТ' в названии",
+                attachments=[builder.as_markup()]
+            )
+        # ДОБАВЬТЕ ЭТИ ОБРАБОТЧИКИ ДЛЯ АБИТУРИЕНТА:
         elif payload == "abiturient_info":
             await send_abiturient_info(chat_id)
         elif payload == "abiturient_chats":
             await send_abiturient_chats(chat_id)
+        elif payload == "back_to_abiturient_menu":
+            await process_role_selection(chat_id, "abiturient")
+        elif payload == "student_events":
+            await send_events_info(chat_id)
+        elif payload == "student_certificate":
+            await send_certificate_info(chat_id)
+        elif payload == "student_profkom":
+            await send_profkom_info(chat_id)
+        elif payload == "back_to_profkom":
+            await send_profkom_info(chat_id)
         elif payload == "back_to_main":
-            # Сбрасываем состояние при возврате в главное меню
             if chat_id in awaiting_group_input:
                 del awaiting_group_input[chat_id]
             await send_welcome_message(chat_id)
         elif payload == "back_to_student_menu":
-            # Сбрасываем состояние при возврате в меню студента
             if chat_id in awaiting_group_input:
                 del awaiting_group_input[chat_id]
             await send_student_menu(chat_id)
-        elif payload == "back_to_abiturient_menu":
-            # Возврат в меню абитуриента
-            await process_role_selection(chat_id, "abiturient")
         else:
             await bot.send_message(
                 chat_id=chat_id,
@@ -287,7 +326,6 @@ async def handle_callback(event: MessageCallback):
             )
         except:
             pass
-
 
 async def send_abiturient_info(chat_id):
     """Отправляет информацию для поступления"""
@@ -350,7 +388,7 @@ async def send_abiturient_chats(chat_id):
     )
 
 async def send_student_menu(chat_id):
-    """Отправляет меню для студентов с тремя кнопками"""
+    """Отправляет меню для студентов с четырьмя кнопками"""
     builder = InlineKeyboardBuilder()
     builder.row(
         CallbackButton(text="📅 Получить расписание", payload="student_schedule"),
@@ -361,7 +399,9 @@ async def send_student_menu(chat_id):
     builder.row(
         CallbackButton(text="📄 Заказ справки", payload="student_certificate"),
     )
-
+    builder.row(
+        CallbackButton(text="👥 Профком", payload="student_profkom"),
+    )
     builder.row(
         CallbackButton(text="🔙 Назад", payload="back_to_main"),
     )
@@ -400,6 +440,42 @@ async def send_events_info(chat_id):
     )
 
 
+async def send_profkom_info(chat_id):
+    """Отправляет информацию о профкоме"""
+    profkom_text = (
+        "🙌Мы — Первичная профсоюзная организация обучающихся УлГТУ.\n\n"
+        "Мы знаем, чего хотят студенты, поэтому каждый день:\n\n"
+        "– представляем интересы студенчества перед администрацией университета\n"
+        "– отвечаем на все вопросы про стипендии и общежития\n"
+        "– помогаем экономить деньги, предоставляя скидки и бонусы\n"
+        "– развиваем навыки, которые ты не прокачиваешь на парах\n"
+        "– организуем твоё свободное время\n"
+        "– и просто решаем студенческие проблемы!\n\n"
+        "И мы хотим, чтобы ты был частью нашей организации 💙\n\n"
+        "📃Вступить в Профсоюз можно в профкоме обучающихся УлГТУ.\n\n"
+        "Будем ждать тебя по будням в аудитории профкома обучающихся (между аудиториями 4 и 4а 3 учебного корпуса с 09:00 до 16:00 (обед с 12:00 до 13:00).\n\n"
+        "Или ты можешь дождаться, когда председатель профбюро твоего факультета проведёт с твоей группой встречу, где расскажет о нас."
+    )
+
+    # Создаем клавиатуру с кнопками
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="👥 Состав", payload="profkom_staff"),
+        CallbackButton(text="💰 Выплаты", payload="profkom_payments"),
+    )
+    builder.row(
+        CallbackButton(text="📞 Контакты", payload="profkom_contacts"),
+    )
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text=profkom_text,
+        attachments=[builder.as_markup()]
+    )
+
 async def send_certificate_info(chat_id):
     """Отправляет информацию о заказе справок"""
     certificate_text = (
@@ -427,6 +503,198 @@ async def send_certificate_info(chat_id):
         attachments=[builder.as_markup()]
     )
 
+
+async def send_profkom_staff_info(chat_id):
+    """Отправляет информацию о составе профкома с картинкой"""
+    try:
+        # Текст о составе профкома
+        staff_text = (
+            "Ты готов попасть в нашу семью? Тогда пора знакомиться!\n\n"
+            "✏ Профсоюзный комитет — выборный орган Первичной профсоюзной организации обучающихся. "
+            "В состав профкома входят: председатель, заместители и 9 председателей профбюро факультетов.\n\n"
+            "👩🏻 Председатель профкома обучающихся - Наталья Федотова\n"
+            "🔷 Заместитель председателя профкома обучающихся - Ксения Морозова\n"
+            "🔹 Заместитель председателя профкома обучающихся - Алексей Лопатин\n\n"
+            "ПРЕДСЕДАТЕЛИ ПРОФСОЮЗНЫХ БЮРО ФАКУЛЬТЕТОВ:\n"
+            "💚ИЭФ - Дмитрий Ульянов\n"
+            "💜ГФ - Анастасия Павлычева\n"
+            "🩵ИАТУ - Айнур Багаутдинов\n"
+            "🧡ЭФ - Дарья Кирпичева\n"
+            "🤍ИФМИ - Герман Филиппов\n"
+            "💛СФ - Оля Лапушкина\n"
+            "💙РТФ - Камилла Алексеева\n"
+            "🖤МФ - Артём Лопатин\n"
+            "❤ФИСТ - Тимур Исаков\n\n"
+            "Тебе предстоит долгий и насыщенный путь, который ты пройдешь со своим профоргом рука об руку, поэтому не стесняйся, пиши ему по любому интересующему тебя вопросу!"
+        )
+
+        # Путь к картинке
+        image_path = os.path.join("assets", "1.jpg")
+
+        # Проверяем существование файла
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            # Отправляем только текст если картинка не найдена
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="back_to_profkom"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=staff_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        # Читаем картинку
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        # Создаем медиа-объект
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="profkom_staff.jpg"
+        )
+
+        # Создаем клавиатуру с кнопкой "Назад"
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_profkom"),
+        )
+
+        # Отправляем сообщение с картинкой и текстом
+        await bot.send_message(
+            chat_id=chat_id,
+            text=staff_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке состава профкома: {e}")
+        # В случае ошибки отправляем только текст
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_profkom"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=staff_text,
+            attachments=[builder.as_markup()]
+        )
+
+
+async def send_profkom_contacts_info(chat_id):
+    """Отправляет контактную информацию профкома"""
+    contacts_text = (
+        "📞 Профком обучающихся УлГТУ\n\n"
+        "Информационная группа Первичной профсоюзной организации обучающихся УлГТУ.\n\n"
+        "Режим работы:\n"
+        "Пн-Пт: 8.30-17.30\n\n"
+        "Приём обучающихся:\n"
+        "Пн-Чт: 9.00-16.00\n\n"
+        "Обед:\n"
+        "12.00-13.00\n\n"
+        "📍 Местоположение:\n"
+        "Аудитория профкома обучающихся (между аудиториями 4 и 4а 3 учебного корпуса)"
+    )
+
+    # Создаем клавиатуру с кнопкой "Назад"
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="back_to_profkom"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text=contacts_text,
+        attachments=[builder.as_markup()]
+    )
+
+async def send_profkom_payments_info(chat_id):
+    """Отправляет информацию о выплатах профкома с картинкой"""
+    try:
+        payments_text = (
+            "👩‍🎓«Информированный студент – успешный студент!»\n\n"
+            "Профком обучающихся УлГТУ считает своим долгом предоставлять студентам всегда самую актуальную информацию!\n\n"
+            "📌Для вашего удобства мы собрали самую важную информацию о выплатах в одном посте, чтобы вы могли легко ее найти.\n\n"
+            "Подробности об условиях их получения и сроках подачи документов находятся ниже.\n\n"
+            "🔹Государственная академическая стипендия\n"
+            "https://vk.com/wall-22117146_4704\n\n"
+            "🔹Повышенная государственная академическая стипендия\n"
+            "https://vk.com/wall-22117146_4713\n\n"
+            "🔹Государственная социальная стипендия\n"
+            "https://vk.com/wall-22117146_4715\n\n"
+            "🔹 Повышенная государственная социальная стипендия\n"
+            "https://vk.com/wall-22117146_4717\n\n"
+            "🔹 Именные стипендии\n"
+            "https://vk.com/wall-22117146_4746\n\n"
+            "🔹 Стипендии Президента и Правительства РФ\n"
+            "https://vk.com/wall-22117146_4303\n\n"
+            "🔹 Губернаторская стипендия «Семья»\n"
+            "https://vk.com/wall-22117146_4400\n\n"
+            "🔹 Стипендия губернатора Ульяновской области «Призывник»\n"
+            "https://vk.com/wall-22117146_4708\n\n"
+            "🔹 Материальная помощь из средств Профсоюза\n"
+            "https://vk.com/wall-22117146_4721\n\n"
+            "🔹 Материальная помощь из средств ВУЗа\n"
+            "https://vk.com/wall-22117146_4720\n\n"
+
+
+        )
+
+        # Путь к картинке выплат
+        image_path = os.path.join("assets", "2.jpg")
+
+        # Проверяем существование файла
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            # Отправляем только текст если картинка не найдена
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="back_to_profkom"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=payments_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        # Читаем картинку
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        # Создаем медиа-объект
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="profkom_payments.jpg"
+        )
+
+        # Создаем клавиатуру с кнопкой "Назад"
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_profkom"),
+        )
+
+        # Отправляем сообщение с картинкой и текстом
+        await bot.send_message(
+            chat_id=chat_id,
+            text=payments_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о выплатах: {e}")
+        # В случае ошибки отправляем только текст
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_profkom"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=payments_text,
+            attachments=[builder.as_markup()]
+        )
 
 # Обработчики команд ролей (оставляем для ручного ввода команд)
 @dp.message_created(Command('student'))
