@@ -161,31 +161,41 @@ async def process_role_selection(chat_id, role):
         # Вместо отправки текста отправляем меню с кнопками
         await send_student_menu(chat_id)
 
+
     elif role == "abiturient":
-        # Создаем клавиатуру с кнопкой "Назад"
+
+        # Создаем клавиатуру с кнопками
+
         builder = InlineKeyboardBuilder()
+
         builder.row(
+
+            CallbackButton(text="📚 Информация для поступления", payload="abiturient_info"),
+
+        )
+
+        builder.row(
+
+            CallbackButton(text="💬 Чаты факультетов", payload="abiturient_chats"),
+
+        )
+
+        builder.row(
+
             CallbackButton(text="🔙 Назад", payload="back_to_main"),
+
         )
 
         await bot.send_message(
+
             chat_id=chat_id,
+
             text="Вы выбрали роль: Абитуриент\n\n"
-                 "Информация для поступления:\n"
-                 "По следующей ссылке находится вся необходимая информация, которая понадобится вам для поступления в Ульяновский Государственный Технический Университет:\n\n"
-                 "https://ulstu.ru/education_programs/index.php?SECTION_ID=536\n\n"
-                 "📍 Контакты и адреса:\n"
-                 "• Приемная комиссия УлГТУ расположена по адресу: г. Ульяновск, ул. Северный Венец, 32, 2 учебный корпус\n"
-                 "• Телефоны: +7 (8422) 43-05-05, +7 (909) 355-70-69\n"
-                 "• E-mail: pk@ulstu.ru\n\n"
-                 "Приёмная ректора:\n"
-                 "• Телефон: 8 (8422) 43-06-43\n"
-                 "• Факс: 8 (8422) 43-02-37\n"
-                 "• E-mail: rector@ulstu.ru\n\n"
-                 "🔗 Более подробная информация находится по ссылке:\n"
-                 "https://ulstu.ru/abitur/common/contacts/\n\n"
-                 "Для справки используйте команду /help",
+
+                 "Выберите нужный раздел:",
+
             attachments=[builder.as_markup()]
+
         )
     elif role == "teacher":
         # Создаем клавиатуру с кнопкой "Назад" для преподавателя
@@ -245,6 +255,10 @@ async def handle_callback(event: MessageCallback):
             await send_events_info(chat_id)
         elif payload == "student_certificate":
             await send_certificate_info(chat_id)
+        elif payload == "abiturient_info":
+            await send_abiturient_info(chat_id)
+        elif payload == "abiturient_chats":
+            await send_abiturient_chats(chat_id)
         elif payload == "back_to_main":
             # Сбрасываем состояние при возврате в главное меню
             if chat_id in awaiting_group_input:
@@ -255,6 +269,9 @@ async def handle_callback(event: MessageCallback):
             if chat_id in awaiting_group_input:
                 del awaiting_group_input[chat_id]
             await send_student_menu(chat_id)
+        elif payload == "back_to_abiturient_menu":
+            # Возврат в меню абитуриента
+            await process_role_selection(chat_id, "abiturient")
         else:
             await bot.send_message(
                 chat_id=chat_id,
@@ -271,6 +288,66 @@ async def handle_callback(event: MessageCallback):
         except:
             pass
 
+
+async def send_abiturient_info(chat_id):
+    """Отправляет информацию для поступления"""
+    info_text = (
+        "Информация для поступления:\n"
+        "По следующей ссылке находится вся необходимая информация, которая понадобится вам для поступления в Ульяновский Государственный Технический Университет:\n\n"
+        "https://ulstu.ru/education_programs/index.php?SECTION_ID=536\n\n"
+        "📍 Контакты и адреса:\n"
+        "• Приемная комиссия УлГТУ расположена по адресу: г. Ульяновск, ул. Северный Венец, 32, 2 учебный корпус\n"
+        "• Телефоны: +7 (8422) 43-05-05, +7 (909) 355-70-69\n"
+        "• E-mail: pk@ulstu.ru\n\n"
+        "Приёмная ректора:\n"
+        "• Телефон: 8 (8422) 43-06-43\n"
+        "• Факс: 8 (8422) 43-02-37\n"
+        "• E-mail: rector@ulstu.ru\n\n"
+        "🔗 Более подробная информация находится по ссылке:\n"
+        "https://ulstu.ru/abitur/common/contacts/\n\n"
+        "Для справки используйте команду /help"
+    )
+
+    # Создаем клавиатуру с кнопкой "Назад"
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="back_to_abiturient_menu"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text=info_text,
+        attachments=[builder.as_markup()]
+    )
+
+
+async def send_abiturient_chats(chat_id):
+    """Отправляет информацию о чатах факультетов"""
+    chats_text = (
+        "💬 Чаты факультетов для абитуриентов:\n\n"
+        "Здесь будут ссылки на чаты всех факультетов УлГТУ\n"
+        "Вы можете задавать вопросы о подаче документов и деканы факультетов с радостью вам ответят\n\n"
+        "📚 Факультеты:\n\n"
+        "1. Факультет информационных систем и технологий - https://vk.me/join/AJQ1dyfBWykr3cy9beR_oyxR\n\n"
+        "2. Строительный факультет - https://vk.me/join/AJQ1d9NGXyn4jOf/78xjXyQi\n\n"
+        "3. Энергетический факультет - https://vk.me/join/AJQ1d2gnZymJfeXPSsdF/NlW\n\n"
+        "4. Гуманитарный факультет - https://vk.me/join/AJQ1dwj_ZilWzfZOesDdgPNk\n\n"
+        "5. Инженерно-экономический факультет - https://vk.me/join/AJQ1d2UzYik924RhKc5VMeZ/\n\n"
+        "6. Радиотехнический факультет - https://vk.me/join/AJQ1dyfCTSk8o5ITrqemJS7g\n\n"
+        "7. Машиностроительный факультет - https://vk.me/join/AJQ1dzMjWin5iByTPltOVTit\n\n"
+    )
+
+    # Создаем клавиатуру с кнопкой "Назад"
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="back_to_abiturient_menu"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text=chats_text,
+        attachments=[builder.as_markup()]
+    )
 
 async def send_student_menu(chat_id):
     """Отправляет меню для студентов с тремя кнопками"""
