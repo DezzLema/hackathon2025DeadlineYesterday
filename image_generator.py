@@ -13,6 +13,9 @@ class ScheduleImageGenerator:
             self.small_font = ImageFont.truetype("arial.ttf", 10)
             self.bold_font = ImageFont.truetype("arialbd.ttf", 11)
             self.bob_font = ImageFont.truetype("arialbd.ttf", 12)
+            # Увеличенные шрифты для номеров пар и времени
+            self.pair_number_font = ImageFont.truetype("arialbd.ttf", 16)  # Увеличен с ~10 до 16
+            self.time_font = ImageFont.truetype("arial.ttf", 12)  # Увеличен с ~8 до 12
         except:
             self.title_font = ImageFont.load_default()
             self.header_font = ImageFont.load_default()
@@ -21,6 +24,9 @@ class ScheduleImageGenerator:
             self.small_font = ImageFont.load_default()
             self.bold_font = ImageFont.load_default()
             self.bob_font = ImageFont.load_default()
+            # Запасные варианты для увеличенных шрифтов
+            self.pair_number_font = ImageFont.load_default()
+            self.time_font = ImageFont.load_default()
 
     def create_schedule_image(self, group_name, week_number, schedules):
         """Создает изображение с расписанием"""
@@ -41,7 +47,7 @@ class ScheduleImageGenerator:
         margin = 15
         day_column_height = 93  # Высота колонки дня
         pair_column_width = 149  # Ширина колонки пары
-        time_row_height = 40  # Высота строки с временем
+        time_row_height = 50  # Увеличена высота строки с временем с 40 до 50
 
         # УЗКАЯ КОЛОНКА ДЛЯ ДНЕЙ НЕДЕЛИ
         day_column_width = 60  # Уменьшили ширину колонки дней
@@ -77,7 +83,7 @@ class ScheduleImageGenerator:
         draw.text((margin + day_column_width // 2, day_header_y + time_row_height // 2), "День",
                   fill='white', font=self.bob_font, anchor="mm")
 
-        # Заголовки пар (номера и время)
+        # Заголовки пар (номера и время) - УВЕЛИЧЕНЫ И ЦЕНТРИРОВАНЫ
         for pair_num in range(1, 9):
             pair_x = margin + day_column_width + (pair_num - 1) * pair_column_width
 
@@ -85,10 +91,19 @@ class ScheduleImageGenerator:
             draw.rectangle([pair_x, day_header_y, pair_x + pair_column_width, day_header_y + time_row_height],
                            fill='#2d2d2d')
 
-            # Номер пары и время
-            pair_text = f"{pair_num}\n{time_slots[pair_num]}"
-            draw.text((pair_x + pair_column_width // 2, day_header_y + time_row_height // 2), pair_text,
-                      fill='white', font=self.small_font, anchor="mm", align='center')
+            # Центр колонки по горизонтали и вертикали
+            center_x = pair_x + pair_column_width // 2
+            center_y = day_header_y + time_row_height // 2
+
+            # Номер пары - УВЕЛИЧЕН, ВЫДЕЛЕН И СМЕЩЕН ВНИЗ
+            number_y = center_y - 8  # Смещаем номер пары вверх от центра
+            draw.text((center_x, number_y), str(pair_num),
+                      fill='white', font=self.pair_number_font, anchor="mm")
+
+            # Время пары - УВЕЛИЧЕНО И СМЕЩЕНО ВНИЗ
+            time_y = center_y + 12  # Смещаем время вниз от центра
+            draw.text((center_x, time_y), time_slots[pair_num],
+                      fill='#cccccc', font=self.time_font, anchor="mm")
 
         y_position += time_row_height
 
