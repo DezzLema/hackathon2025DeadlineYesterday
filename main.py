@@ -264,6 +264,32 @@ async def handle_callback(event: MessageCallback):
             await send_profkom_payments_info(chat_id)
         elif payload == "profkom_contacts":
             await send_profkom_contacts_info(chat_id)
+        elif payload == "student_scholarship":
+            await send_scholarship_info(chat_id)
+        elif payload == "student_life":
+            await send_student_life_info(chat_id)
+        elif payload == "scholarship_students":
+            await send_scholarship_students_info(chat_id)
+        elif payload == "scholarship_masters":
+            await send_scholarship_masters_info(chat_id)
+        elif payload == "scholarship_phd":
+            await send_scholarship_phd_info(chat_id)
+        elif payload == "scholarship_college":
+            await send_scholarship_college_info(chat_id)
+        elif payload == "scholarship_increased":
+            await send_scholarship_increased_info(chat_id)
+        elif payload == "student_dormitory":
+            await send_dormitory_info(chat_id)
+        elif payload == "dormitory_provision":
+            await send_dormitory_provision_info(chat_id)
+        elif payload == "dormitory_contacts":
+            await send_dormitory_contacts_info(chat_id)
+        elif payload == "student_media":
+            await send_student_media_info(chat_id)
+        elif payload == "student_volunteer":
+            await send_student_volunteer_info(chat_id)
+        elif payload == "student_teams":
+            await send_student_teams_info(chat_id)
         elif payload == "enter_group_name":
             awaiting_group_input[chat_id] = True
             builder = InlineKeyboardBuilder()
@@ -297,6 +323,8 @@ async def handle_callback(event: MessageCallback):
             await send_certificate_info(chat_id)
         elif payload == "student_profkom":
             await send_profkom_info(chat_id)
+        elif payload == "student_career":
+            await send_career_center_info(chat_id)
         elif payload == "back_to_profkom":
             await send_profkom_info(chat_id)
         elif payload == "back_to_main":
@@ -323,6 +351,39 @@ async def handle_callback(event: MessageCallback):
         except:
             pass
 
+async def send_scholarship_info(chat_id):
+    """Отправляет информацию о стипендиальных выплатах"""
+    try:
+        scholarship_text = (
+            "💰 *Стипендиальные выплаты*\n\n"
+            "Выберите категорию для получения информации о стипендиях:"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="👨‍🎓 Студенты", payload="scholarship_students"),
+            CallbackButton(text="🎓 Магистрантам", payload="scholarship_masters"),
+        )
+        builder.row(
+            CallbackButton(text="📚 Аспирантам", payload="scholarship_phd"),
+            CallbackButton(text="🏫 Стипендия колледжей", payload="scholarship_college"),
+        )
+        builder.row(
+            CallbackButton(text="⭐ Повышенная стипендия", payload="scholarship_increased"),
+        )
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о стипендиях: {e}")
+        await bot.send_message(chat_id=chat_id, text="❌ Ошибка при загрузке информации о стипендиях")
 
 async def send_abiturient_info(chat_id):
     """Отправляет информацию для поступления"""
@@ -354,6 +415,583 @@ async def send_abiturient_info(chat_id):
         attachments=[builder.as_markup()]
     )
 
+async def send_dormitory_provision_info(chat_id):
+    """Отправляет информацию о предоставлении мест в общежитии"""
+    provision_text = (
+        "📋 *Предоставление мест в общежитии*\n\n"
+        "1. Получить в деканате справку о поступлении на обучение в УлГТУ (далее - Справка); получить Справку.\n\n"
+        "2. В зависимости от факультета обратиться со Справкой и паспортом РФ (далее - Паспорт) к заведующей общежитием №1, №2 или №3 (распределение факультетов по общежитиям – см. текст выше данного алгоритма) для получения ордера на заселение (далее - Ордер); получить Ордер.\n\n"
+        "3. Медицинская справка из медпункта УлГТУ (6 корпус каб. 410);\n\n"
+        "4. Обратиться с Ордером, Паспортом и медсправкой в центр обслуживания студентов (главный учебный корпус (корпус 6), этаж 3, каб.301) для заключения договора на проживание (далее - Договор) и оформления временной регистрации; получить Договор и свидетельство о временной регистрации.\n\n"
+        "5. Обратиться с Договором и Паспортом в бюро пропусков УлГТУ (каб.100Б, 1-й этаж 3-го учебного корпуса) для оформления биометрического пропуска в общежитие; оформить биометрический пропуск.\n\n"
+        "6. Обратиться с Договором, Медсправкой и Паспортом к заведующей общежитием для собственно заселения в общежитие; заселиться в общежитие."
+    )
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="student_dormitory"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text=provision_text,
+        attachments=[builder.as_markup()]
+    )
+
+async def send_dormitory_contacts_info(chat_id):
+    """Отправляет контактную информацию об общежитиях"""
+    contacts_text = (
+        "📞 *Контакты общежитий УлГТУ*\n\n"
+        "*Директор студенческого городка:*\n"
+        "Головко Марина Николаевна\n"
+        "тел.: +7 (8422) 778-516, +7 (8422) 778-459.\n\n"
+        "*Центр обслуживания студентов:*\n"
+        "+7 (8422) 778-465.\n\n"
+        "*Заведующая общежитием №1:*\n"
+        "Шевцова Наталья Евгеньевна\n"
+        "тел.: +7 (8422) 778-278; +7 (8422) 778-514 (вахта общежития №1).\n\n"
+        "*Заведующая общежитием №2:*\n"
+        "Пигалёва Надежда Павловна\n"
+        "тел.: +7 (8422) 778-268; +7 (8422) 778-515 (вахта общежития №2).\n\n"
+        "*Заведующая общежитием №3:*\n"
+        "Зайцева Лариса Владимировна\n"
+        "тел.: +7 (8422) 778-269; +7 (8422) 778-507 (вахта общежития №3)."
+    )
+
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        CallbackButton(text="🔙 Назад", payload="student_dormitory"),
+    )
+
+    await bot.send_message(
+        chat_id=chat_id,
+        text=contacts_text,
+        attachments=[builder.as_markup()]
+    )
+
+async def send_scholarship_phd_info(chat_id):
+    """Отправляет информацию о стипендиях для аспирантов с картинкой"""
+    try:
+        scholarship_text = (
+            "📚 *Стипендиальные выплаты для аспирантов*\n\n"
+            "Информация о стипендиях и выплатах, доступных для аспирантов УлГТУ.\n\n"
+            "📊 *Виды стипендий для аспирантов:*\n"
+            "• Государственная стипендия аспирантам\n"
+            "• Повышенная стипендия за научные достижения\n"
+            "• Именные стипендии для аспирантов\n"
+            "• Стипендии Президента и Правительства РФ\n"
+            "• Гранты и научные стипендии\n\n"
+            "💡 *Для получения подробной информации обращайтесь в отдел аспирантуры или профком.*"
+        )
+
+        image_path = os.path.join("assets", "6.png")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=scholarship_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="scholarship_phd.png"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о стипендиях для аспирантов: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[builder.as_markup()]
+        )
+
+async def send_dormitory_info(chat_id):
+    """Отправляет информацию об общежитиях с картинкой"""
+    try:
+        dormitory_text = (
+            "🏠 *ИНФОРМАЦИЯ ДЛЯ НУЖДАЮЩИХСЯ В ОБЩЕЖИТИИ*\n\n"
+            "Лицам, зарегистрированным вне г.Ульяновска и нуждающимся в общежитии, таковое может быть предоставлено.\n\n"
+            "В г.Ульяновске УлГТУ располагает четырьмя общежития (№1, 2, 3 и 6) общей вместимостью свыше 1300 человек. Общежития расположены на территории кампуса УЛГТУ, на северной площадке (ул.Северный Венец, 32).\n\n"
+            "Проживание в общежитии – это весьма бюджетно (стоимость - от 571,77 руб. для обучающихся на бюджетных местах и от 2004,16 руб. – для внебюджетных мест) и территориально выгодно в силу близости как к учебным корпусам УлГТУ, так и к объектам спортивной инфраструктуры (порядка 500 м в обоих случаях).\n\n"
+            "Как правило, в общежитиях №1, №2 и №3 размещаются учащиеся и студенты УлГТУ, являющиеся гражданами РФ, а в общежитиях №3 и №6 – студенты, являющиеся гражданами иностранных государств, а также сотрудники УлГТУ.\n\n"
+            "Учащиеся и студенты, являющиеся гражданами РФ, размещаются в общежитиях №1, №2 и №3 с соблюдением факультетского принципа размещения: так, в общежитии №1 размещаются учащиеся КЭИ, а также студенты ФИСТ, РТФ и самолётостроительного факультета в общежитии №2 – студенты гуманитарного, энергетического факультетов; в общежитии № 3 - машиностроительного и строительного факультетов."
+        )
+
+        image_path = os.path.join("assets", "10.jpg")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="📋 Предоставление мест", payload="dormitory_provision"),
+                CallbackButton(text="📞 Контакты", payload="dormitory_contacts"),
+            )
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=dormitory_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="dormitory_info.jpg"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="📋 Предоставление мест", payload="dormitory_provision"),
+            CallbackButton(text="📞 Контакты", payload="dormitory_contacts"),
+        )
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=dormitory_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации об общежитиях: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="📋 Предоставление мест", payload="dormitory_provision"),
+            CallbackButton(text="📞 Контакты", payload="dormitory_contacts"),
+        )
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=dormitory_text,
+            attachments=[builder.as_markup()]
+        )
+
+async def send_scholarship_increased_info(chat_id):
+    """Отправляет информацию о повышенной стипендии с картинкой"""
+    try:
+        scholarship_text = (
+            "⭐ *Повышенная стипендия*\n\n"
+            "Информация о повышенных стипендиях для студентов, магистрантов и аспирантов УлГТУ.\n\n"
+            "📊 *Условия получения повышенной стипендии:*\n"
+            "• Отличная успеваемость\n"
+            "• Научные достижения и публикации\n"
+            "• Участие в олимпиадах и конкурсах\n"
+            "• Активная общественная деятельность\n"
+            "• Спортивные достижения\n\n"
+            "💡 *Для получения подробной информации о критериях и подаче заявления обращайтесь в профком или деканат.*"
+        )
+
+        image_path = os.path.join("assets", "8.png")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=scholarship_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="scholarship_increased.png"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о повышенной стипендии: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[builder.as_markup()]
+        )
+
+async def send_student_life_info(chat_id):
+    """Отправляет меню студенческой жизни"""
+    try:
+        life_text = (
+            "🎓 *Студенческая жизнь УлГТУ*\n\n"
+            "Выберите направление для получения подробной информации:"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="📰 Студенческие медиа", payload="student_media"),
+        )
+        builder.row(
+            CallbackButton(text="🤝 Добровольческий центр", payload="student_volunteer"),
+        )
+        builder.row(
+            CallbackButton(text="👷 Студенческие отряды", payload="student_teams"),
+        )
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=life_text,
+            attachments=[builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке меню студенческой жизни: {e}")
+        await bot.send_message(chat_id=chat_id, text="❌ Ошибка при загрузке информации")
+
+async def send_scholarship_masters_info(chat_id):
+    """Отправляет информацию о стипендиях для магистрантов с картинкой"""
+    try:
+        scholarship_text = (
+            "🎓 *Стипендиальные выплаты для магистрантов*\n\n"
+            "Информация о стипендиях и выплатах, доступных для студентов магистратуры УлГТУ.\n\n"
+            "📊 *Виды стипендий для магистрантов:*\n"
+            "• Государственная академическая стипендия\n"
+            "• Повышенная государственная академическая стипендия\n"
+            "• Стипендии для аспирантов и магистрантов\n"
+            "• Именные стипендии\n"
+            "• Стипендии за научные достижения\n\n"
+            "💡 *Для получения подробной информации обращайтесь в профком или деканат вашего факультета.*"
+        )
+
+        image_path = os.path.join("assets", "5.png")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=scholarship_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="scholarship_masters.png"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о стипендиях для магистрантов: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[builder.as_markup()]
+        )
+
+async def send_scholarship_students_info(chat_id):
+    """Отправляет информацию о стипендиях для студентов с картинкой"""
+    try:
+        scholarship_text = (
+            "👨‍Стипендиальные выплаты для студентов\n\n"
+            "Здесь представлена информация о всех видах стипендий, доступных для студентов УлГТУ.\n\n"
+            "📊 Основные виды стипендий:\n"
+            "• Государственная академическая стипендия\n"
+            "• Повышенная государственная академическая стипендия\n"
+            "• Государственная социальная стипендия\n"
+            "• Именные стипендии\n"
+            "• Стипендии Президента и Правительства РФ\n\n"
+            "💡 Для получения подробной информации обращайтесь в профком или деканат вашего факультета."
+        )
+
+        image_path = os.path.join("assets", "4.png")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=scholarship_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="scholarship_students.png"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о стипендиях для студентов: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[builder.as_markup()]
+        )
+
+async def send_student_media_info(chat_id):
+    """Отправляет информацию о студенческих медиа с картинкой"""
+    try:
+        media_text = (
+            "📰 *Студенческие медиа УлГТУ*\n\n"
+            "Студенческие медиа УлГТУ – это площадка для самореализации тех, кому интересно быть в центре событий, кто любит Политех и хочет рассказать о нем другим!\n\n"
+            "Студенческие медиа УлГТУ освещают события студенческой жизни вуза: научные, образовательные, культурные, спортивные, развлекательные и другие. Свой профессиональный уровень участники поднимают в рамках медиашкол УлГТУ, выездных мастер-классов и самообучения. Более 50% всего контента об УлГТУ - продукт студенческих медиа.\n\n"
+            "Команда студенческих медиа регулярно участвуют в конкурсах и фестивалях, представляют УлГТУ и Ульяновскую область на Российской студенческой весне в номинации «Журналистика».\n\n"
+            "Любой студент может стать участником студенческих медиацентров УлГТУ, где есть возможность заниматься фото- и видеосъемкой, монтажом роликов, моушн-дизайном, создавать собственные студенческие медиапроекты, становиться ведущими и сценаристами, создавать контент для социальных сетей УлГТУ и писать интересные статьи для разных площадок.\n\n"
+            "В УлГТУ действуют 2 студенческих медиацентра:\n\n"
+            "• студенческий медиацентр при Управлении по информационной политики и связям с общественностью УлГТУ - http://vk.com/mediaulstu\n\n"
+            "• студенческий медиацентр «ОСОВЕТЬ» при Объединенном совете обучающихся УлГТУ - http://vk.com/osovet_media\n\n"
+            "В своей дружной команде студенческие медиацентры рады видеть: фотографов, сценаристов и ведущих, операторов, журналистов, пиарщиков, SMM-щиков, дизайнеров."
+        )
+
+        image_path = os.path.join("assets", "12.png")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_life"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=media_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="student_media.png"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_life"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=media_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о студенческих медиа: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_life"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=media_text,
+            attachments=[builder.as_markup()]
+        )
+
+async def send_student_volunteer_info(chat_id):
+        """Отправляет информацию о добровольческом центре с картинкой"""
+        try:
+            volunteer_text = (
+                "🤝 *Добровольческий центр УлГТУ*\n\n"
+                "Добровольческий Центр является объединением обучающихся, осуществляющим деятельность по организации и развитию добровольческого движения в университете.\n\n"
+                "Все добровольцы – герои нашего времени, которые всегда находят время и возможность помогать тем, кто в этом нуждается. Студенты работают как на вузовских, так и на региональных мероприятиях, участвуют в конференциях и форумах, в экологических, благотворительных, донорских акциях.\n\n"
+                "Сейчас в Центре более 50 волонтеров, которые активно принимают участие в жизни нашего вуза и города. Они занимаются организацией многих масштабных мероприятий, донорством, облагораживанием территорий, пропагандой здорового образа жизни, экологическим просвещением, содействием в помощи пожилым людям, осуществлением посещений в приют для животных.\n\n"
+                "Волонтеры УлГТУ являются участниками общероссийской акции взаимопомощи #МЫВМЕСТЕ. Активисты добровольческого центра оказывают адресную помощь нуждающимся жителям города. Волонтёры могут помочь в покупке продуктов и лекарств, решении бытовых проблем.\n\n"
+                "Если ты хочешь стать частью Центра: помогать нуждающимся, организовывать благотворительные акции и мероприятия, а также участвовать в качестве волонтёра в масштабных проектах, пиши руководителю и присоединяйся к команде!"
+            )
+
+            image_path = os.path.join("assets", "13.png")
+
+            if not os.path.exists(image_path):
+                logging.warning(f"❌ Файл {image_path} не найден")
+                builder = InlineKeyboardBuilder()
+                builder.row(
+                    CallbackButton(text="🔙 Назад", payload="student_life"),
+                )
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=volunteer_text,
+                    attachments=[builder.as_markup()]
+                )
+                return
+
+            with open(image_path, "rb") as file:
+                image_data = file.read()
+
+            input_media = InputMediaBuffer(
+                buffer=image_data,
+                filename="student_volunteer.png"
+            )
+
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_life"),
+            )
+
+            await bot.send_message(
+                chat_id=chat_id,
+                text=volunteer_text,
+                attachments=[input_media, builder.as_markup()]
+            )
+
+        except Exception as e:
+            logging.error(f"❌ Ошибка при отправке информации о добровольческом центре: {e}")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_life"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=volunteer_text,
+                attachments=[builder.as_markup()]
+            )
+
+async def send_student_teams_info(chat_id):
+    """Отправляет информацию о студенческих отрядах с картинкой"""
+    try:
+        teams_text = (
+            "👷 *Студенческие отряды УлГТУ*\n\n"
+            "Штаб студенческих отрядов УлГТУ действует совместно с общественной организацией «Российские Студенческие Отряды». Главная цель - трудоустройство студентов в летнее и внеучебное время.\n\n"
+            "Сейчас на базе университета работает 6 отрядов:\n\n"
+            "• *Строительные отряды «Патриот», «Фобос» и «Селена».* Направление деятельности – участие во всероссийских стройках.\n\n"
+            "• *Сервисные отряды «Лампа» и «Калейдоскоп».* Направление деятельности - работа на море (Семейный Отель 'Alean Family Dovile', г. Анапа) по направлениям клининг, бармен, официант, повар, спасатель, аниматор.\n\n"
+            "• *Отряд снежного десанта «Эверест».* Направление деятельности - волонтерская помощь ветеранам ВОВ и СВО, проведение развлекательных программ для детей сел и деревень, Профориентационная работа со школьникам\n\n"
+            "Группа Штаба студенческих отрядов УлГТУ - https://vk.com/rso_ulstu"
+        )
+
+        image_path = os.path.join("assets", "14.jpg")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_life"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=teams_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="student_teams.jpg"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_life"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=teams_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о студенческих отрядах: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_life"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=teams_text,
+            attachments=[builder.as_markup()]
+        )
 
 async def send_abiturient_chats(chat_id):
     """Отправляет информацию о чатах факультетов"""
@@ -382,12 +1020,76 @@ async def send_abiturient_chats(chat_id):
         attachments=[builder.as_markup()]
     )
 
+async def send_career_center_info(chat_id):
+    """Отправляет информацию о центре карьеры с картинкой"""
+    try:
+        career_text = (
+            "💼 *Центр Карьеры, УлГТУ*\n\n"
+            "Подберем ключ к твоей карьере\n"
+            "Поможем пройти практику, расскажем о вакансиях, сообщим о карьерных мероприятиях.\n\n"
+            "Мы на Факультетусе: https://facultetus.ru/ulstu\n\n"
+            "Наша группа в вк: https://vk.com/rabotaulstu"
+        )
+
+        image_path = os.path.join("assets", "15.jpg")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=career_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="career_center.jpg"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=career_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о центре карьеры: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="back_to_student_menu"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=career_text,
+            attachments=[builder.as_markup()]
+        )
 
 async def send_student_menu(chat_id):
-    """Отправляет меню для студентов с четырьмя кнопками"""
+    """Отправляет меню для студентов с восемью кнопками"""
     builder = InlineKeyboardBuilder()
     builder.row(
         CallbackButton(text="📅 Получить расписание", payload="student_schedule"),
+    )
+    builder.row(
+        CallbackButton(text="💰 Стипендиальные выплаты", payload="student_scholarship"),
+        CallbackButton(text="🏠 Общежитие", payload="student_dormitory"),
+    )
+    builder.row(
+        CallbackButton(text="🎓 Студенческая жизнь", payload="student_life"),
+        CallbackButton(text="💼 Центр Карьеры", payload="student_career"),
     )
     builder.row(
         CallbackButton(text="🎭 Мероприятия", payload="student_events"),
@@ -593,6 +1295,66 @@ async def send_profkom_contacts_info(chat_id):
         attachments=[builder.as_markup()]
     )
 
+async def send_scholarship_college_info(chat_id):
+    """Отправляет информацию о стипендиях для колледжей с картинкой"""
+    try:
+        scholarship_text = (
+            "🏫 *Стипендиальные выплаты для колледжей*\n\n"
+            "Информация о стипендиях и выплатах, доступных для студентов колледжей при УлГТУ.\n\n"
+            "📊 *Виды стипендий для колледжей:*\n"
+            "• Государственная академическая стипендия\n"
+            "• Социальная стипендия\n"
+            "• Повышенная стипендия за успехи в учебе\n"
+            "• Стипендии за активную деятельность\n"
+            "• Именные стипендии и гранты\n\n"
+            "💡 *Для получения подробной информации обращайтесь в администрацию колледжа или профком.*"
+        )
+
+        image_path = os.path.join("assets", "7.png")
+
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text=scholarship_text,
+                attachments=[builder.as_markup()]
+            )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="scholarship_college.png"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о стипендиях для колледжей: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_scholarship"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=scholarship_text,
+            attachments=[builder.as_markup()]
+        )
 
 async def send_profkom_payments_info(chat_id):
     """Отправляет информацию о выплатах профкома с картинкой"""
