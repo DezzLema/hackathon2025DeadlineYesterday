@@ -77,16 +77,13 @@ async def generate_and_send_table(chat_id, group_number=None):
     try:
         if group_number:
             group_name = parser.get_group_name(group_number)
-            await bot.send_message(chat_id=chat_id, text=f"🔄 Генерирую расписание для группы {group_name}...")
+
 
             # Получаем информацию о части расписания
             part_id, part_data = parser.get_schedule_part_for_group(group_number)
             group_url = parser.get_group_url(group_number)
 
             # Проверяем доступность URL
-            await bot.send_message(chat_id=chat_id, text=f"📁 Часть расписания: {part_id}")
-            await bot.send_message(chat_id=chat_id, text=f"🔗 Проверяю доступность расписания...")
-
             schedule_image = parser.get_schedule_image_by_number(group_number)
             filename = f"schedule_group_{group_number}.png"
         else:
@@ -210,10 +207,7 @@ async def process_role_selection(chat_id, role):
 
         # Показываем сообщение об успешной смене роли
         if current_user_info and current_user_info[1] != role:
-            await bot.send_message(
-                chat_id=chat_id,
-                text=f"✅ Роль успешно изменена с '{current_user_info[1]}' на '{role}'"
-            )
+            logging.info(f"✅ Роль успешно изменена с '{current_user_info[1]}' на '{role}'")
 
     except Exception as e:
         logging.error(f"❌ Ошибка при обработке выбора роли: {e}")
@@ -1573,7 +1567,7 @@ async def group_command(event: MessageCreated):
             )
             return
 
-        await event.message.answer(f"🔍 Ищу группу: {group_name}")
+
 
         # Ищем группу по названию
         group_number = parser.find_group_number(group_name)
@@ -1584,7 +1578,7 @@ async def group_command(event: MessageCreated):
             # СОХРАНЯЕМ ГРУППУ В БАЗУ ДАННЫХ
             user_db.update_user_group(chat_id, found_group_name)
 
-            await event.message.answer(f"✅ Найдена группа: {found_group_name}\n💾 Группа сохранена в вашем профиле!")
+
             await generate_and_send_table(chat_id, group_number)
         else:
             # Предлагаем похожие группы
