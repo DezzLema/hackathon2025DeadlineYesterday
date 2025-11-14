@@ -22,6 +22,7 @@ parser = UlstuParser()
 
 # Хранилище для временных состояний
 awaiting_group_input = {}
+awaiting_teacher_input = {}
 
 # Создаем папку для расписаний если её нет
 if not os.path.exists(SCHEDULE_DIR):
@@ -227,14 +228,15 @@ async def handle_callback(event: MessageCallback):
             role = payload.split("_")[1]
             await process_role_selection(chat_id, role)
         elif payload == "teacher_schedule":
-            # Пока просто отправляем сообщение, что функция в разработке
+            # Устанавливаем состояние ожидания ввода фамилии преподавателя
+            awaiting_teacher_input[chat_id] = True
             builder = InlineKeyboardBuilder()
             builder.row(
                 CallbackButton(text="🔙 Назад", payload="back_to_main"),
             )
             await bot.send_message(
                 chat_id=chat_id,
-                text="📅 Функция получения расписания для преподавателей находится в разработке.\n\nСкоро здесь можно будет получить расписание занятий преподавателя.",
+                text="👨‍🏫 Введите фамилию преподавателя (без инициалов)\n\nПримеры:\n• петров\n• иванов\n• сидоров\n\n💡 Подсказка: Вводите только фамилию, система найдет преподавателя автоматически",
                 attachments=[builder.as_markup()]
             )
         elif payload == "student_menu":
@@ -1867,6 +1869,85 @@ async def handle_message(event: MessageCreated):
                         f"• Используйте `/search {text}` для поиска\n"
                         f"• Проверьте правильность написания"
                     )
+
+        elif chat_id in awaiting_teacher_input and awaiting_teacher_input[chat_id]:
+            # Сбрасываем состояние ожидания
+            del awaiting_teacher_input[chat_id]
+
+            if not text:
+                await event.message.answer(
+                    "❌ Вы не ввели фамилию преподавателя.\n\nПопробуйте снова или используйте кнопку 'Назад'"
+                )
+                return
+
+            # Проверяем, что пользователь преподаватель
+            user_info = user_db.get_user(chat_id)
+            if not user_info or user_info[1] != "teacher":
+                await event.message.answer(
+                    "❌ Эта функция доступна только для преподавателей.\nПожалуйста, сначала выберите роль преподавателя"
+                )
+                return
+
+            # Ищем преподавателя по фамилии
+            await event.message.answer(f"🔍 Ищу преподавателя: {text}")
+
+            teacher_number = parser.find_teacher_number(text)
+
+            if teacher_number:
+                teacher_name = parser.get_teacher_name(teacher_number)
+                await event.message.answer(
+                    f"✅ Найден преподаватель: {teacher_name}\n"
+                    f"🔄 Загружаю расписание..."
+                )
+
+                try:
+                    # Получаем и отправляем расписание преподавателя
+                    teacher_url = parser.get_teacher_url(teacher_number)
+                    schedule_image = parser.get_teacher_schedule_image(teacher_url)
+
+                    # Сохраняем и отправляем изображение
+                    filename = f"schedule_teacher_{teacher_number}.png"
+                    file_path = os.path.join(SCHEDULE_DIR, filename)
+
+                    image_bytes_io = parser.image_generator.image_to_bytes(schedule_image)
+                    with open(file_path, "wb") as f:
+                        f.write(image_bytes_io.getvalue())
+
+                    with open(file_path, "rb") as file:
+                        image_data = file.read()
+
+                    input_media = InputMediaBuffer(
+                        buffer=image_data,
+                        filename=filename
+                    )
+
+                    builder = InlineKeyboardBuilder()
+                    builder.row(
+                        CallbackButton(text="🔙 Назад", payload="back_to_main"),
+                    )
+
+                    await bot.send_message(
+                        chat_id=chat_id,
+                        text=f"📅 Расписание преподавателя {teacher_name}",
+                        attachments=[input_media, builder.as_markup()]
+                    )
+
+                    logging.info(f"✅ Расписание преподавателя отправлено: {teacher_name}")
+
+                except Exception as e:
+                    logging.error(f"❌ Ошибка при получении расписания преподавателя: {e}")
+                    await event.message.answer(
+                        f"❌ Ошибка при загрузке расписания преподавателя {teacher_name}\n"
+                        f"Попробуйте позже или обратитесь к администратору"
+                    )
+            else:
+                await event.message.answer(
+                    f"❌ Преподаватель с фамилией '{text}' не найден.\n\n"
+                    f"💡 *Советы:*\n"
+                    f"• Проверьте правильность написания фамилии\n"
+                    f"• Вводите только фамилию без инициалов\n"
+                    f"• Попробуйте другую фамилию"
+                )
 
         elif text and not text.startswith('/'):
             # Обычное сообщение без команды
