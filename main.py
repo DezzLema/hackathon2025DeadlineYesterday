@@ -3,13 +3,14 @@ import logging
 import os
 from maxapi import Bot, Dispatcher
 
+from config.config import BOT_TOKEN
 from handlers.commands import register_command_handlers
 from handlers.callbacks import register_callback_handlers
 from handlers.messages import register_message_handlers
 from services.schedule_service import ScheduleService
 from services.user_service import UserService
 from config import *
-from database import user_db
+from database.database import user_db
 
 logging.basicConfig(level=logging.INFO)
 

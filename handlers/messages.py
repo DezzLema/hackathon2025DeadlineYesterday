@@ -2,7 +2,7 @@ import logging
 from maxapi.types import MessageCreated
 from services.schedule_service import ScheduleService
 from services.user_service import UserService
-from state_service import state_service
+from services.state_service import state_service
 
 logging.basicConfig(level=logging.INFO)
 

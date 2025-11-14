@@ -3,12 +3,14 @@ import os
 from maxapi.types import InputMediaBuffer
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
 from maxapi.types import CallbackButton
-from state_service import state_service
 
-from UlstuParser import UlstuParser
-from groups_dict import GROUPS_DICT
+from config.config import ULSTU_USERNAME, ULSTU_PASSWORD
+from services.state_service import state_service
+
+from parsers.UlstuParser import UlstuParser
+from database.groups_dict import GROUPS_DICT
 from config import *
-from database import user_db
+from database.database import user_db
 from keyboards.inline_keyboards import get_back_button, get_back_to_student_menu_button, get_back_to_profkom_button
 from services.user_service import UserService
 
@@ -115,7 +117,7 @@ class ScheduleService:
 
     async def handle_group_command(self, bot, chat_id, group_name):
         """Обработка команды /group"""
-        from database import user_db
+        from database.database import user_db
 
         # Проверяем роль пользователя из БД
         user_info = user_db.get_user(chat_id)
@@ -168,7 +170,7 @@ class ScheduleService:
 
     async def send_groups_info(self, bot, chat_id):
         """Отправляет информацию о доступных группах"""
-        from database import user_db
+        from database.database import user_db
 
         user_info = user_db.get_user(chat_id)
         if not user_info or user_info[1] != "student":
@@ -196,7 +198,7 @@ class ScheduleService:
 
     async def handle_search_command(self, bot, chat_id, search_query):
         """Обработка команды поиска"""
-        from database import user_db
+        from database.database import user_db
 
         user_info = user_db.get_user(chat_id)
         if not user_info or user_info[1] != "student":
@@ -251,7 +253,7 @@ class ScheduleService:
 
     async def handle_student_schedule_callback(self, bot, chat_id):
         """Обработка callback для получения расписания студента"""
-        from database import user_db
+        from database.database import user_db
 
         user_info = user_db.get_user(chat_id)
 
@@ -300,7 +302,7 @@ class ScheduleService:
 
     async def handle_group_input(self, bot, chat_id, text):
         """Обработка ввода названия группы"""
-        from database import user_db
+        from database.database import user_db
 
         # Сбрасываем состояние сразу
         state_service.clear_user_state(chat_id)
@@ -368,7 +370,7 @@ class ScheduleService:
 
     async def handle_teacher_input(self, bot, chat_id, text):
         """Обработка ввода фамилии преподавателя"""
-        from database import user_db
+        from database.database import user_db
 
         if not text:
             await bot.send_message(

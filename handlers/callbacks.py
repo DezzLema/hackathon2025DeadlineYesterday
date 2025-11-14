@@ -1,7 +1,7 @@
 import logging
 from maxapi.types import MessageCallback
 
-from state_service import state_service
+from services.state_service import state_service
 from services.schedule_service import ScheduleService
 from services.user_service import UserService
 from keyboards.student_menu import send_student_menu

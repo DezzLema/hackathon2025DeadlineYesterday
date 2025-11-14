@@ -1,8 +1,8 @@
 import logging
-from database import user_db
+from database.database import user_db
 from keyboards.student_menu import send_student_menu
 from keyboards.inline_keyboards import get_back_button
-from state_service import state_service
+from services.state_service import state_service
 
 logging.basicConfig(level=logging.INFO)
 
