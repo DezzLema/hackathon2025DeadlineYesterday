@@ -1,22 +1,56 @@
 from PIL import Image, ImageDraw, ImageFont
 import io
 import logging
+import os
 
 
 class ScheduleImageGenerator:
     def __init__(self):
+        self._setup_fonts()
+
+    def _setup_fonts(self):
+        """Настройка шрифтов - используем Arial из локальной папки"""
         try:
-            self.title_font = ImageFont.truetype("arial.ttf", 24)
-            self.header_font = ImageFont.truetype("arial.ttf", 18)
-            self.subheader_font = ImageFont.truetype("arial.ttf", 14)
-            self.text_font = ImageFont.truetype("arial.ttf", 11)
-            self.small_font = ImageFont.truetype("arial.ttf", 10)
-            self.bold_font = ImageFont.truetype("arialbd.ttf", 11)
-            self.bob_font = ImageFont.truetype("arialbd.ttf", 12)
-            # Увеличенные шрифты для номеров пар и времени
-            self.pair_number_font = ImageFont.truetype("arialbd.ttf", 16)  # Увеличен с ~10 до 16
-            self.time_font = ImageFont.truetype("arial.ttf", 12)  # Увеличен с ~8 до 12
-        except:
+            # Пути к шрифтам (пробуем разные возможные расположения)
+            font_paths = [
+                "./fonts/arial.ttf",  # Локальная папка
+                "./fonts/Arial.ttf",  # Локальная папка (с большой буквы)
+                "/app/fonts/arial.ttf",  # Путь в Docker контейнере
+                "/app/fonts/Arial.ttf",  # Путь в Docker контейнере
+                "./fonts/arial.tff",  # Ваш файл с расширением .tff
+                "/app/fonts/arial.tff",  # Ваш файл в Docker
+            ]
+
+            arial_font_path = None
+            for path in font_paths:
+                if os.path.exists(path):
+                    arial_font_path = path
+                    logging.info(f"✅ Найден шрифт Arial: {path}")
+                    break
+
+            if arial_font_path:
+                # Используем Arial для всех шрифтов
+                self.title_font = ImageFont.truetype(arial_font_path, 24)
+                self.header_font = ImageFont.truetype(arial_font_path, 18)
+                self.subheader_font = ImageFont.truetype(arial_font_path, 14)
+                self.text_font = ImageFont.truetype(arial_font_path, 11)
+                self.small_font = ImageFont.truetype(arial_font_path, 10)
+                self.bold_font = ImageFont.truetype(arial_font_path, 11)
+                self.bob_font = ImageFont.truetype(arial_font_path, 12)
+                self.pair_number_font = ImageFont.truetype(arial_font_path, 16)
+                self.time_font = ImageFont.truetype(arial_font_path, 12)
+                logging.info("✅ Все шрифты успешно загружены")
+            else:
+                logging.warning("❌ Шрифт Arial не найден, используем стандартные")
+                self._setup_fallback_fonts()
+
+        except Exception as e:
+            logging.error(f"❌ Ошибка загрузки шрифтов: {e}")
+            self._setup_fallback_fonts()
+
+    def _setup_fallback_fonts(self):
+        """Резервные шрифты"""
+        try:
             self.title_font = ImageFont.load_default()
             self.header_font = ImageFont.load_default()
             self.subheader_font = ImageFont.load_default()
@@ -24,9 +58,20 @@ class ScheduleImageGenerator:
             self.small_font = ImageFont.load_default()
             self.bold_font = ImageFont.load_default()
             self.bob_font = ImageFont.load_default()
-            # Запасные варианты для увеличенных шрифтов
             self.pair_number_font = ImageFont.load_default()
             self.time_font = ImageFont.load_default()
+            logging.warning("⚠️ Используются стандартные шрифты (кириллица может не работать)")
+        except:
+            # Абсолютный fallback
+            self.title_font = None
+            self.header_font = None
+            self.subheader_font = None
+            self.text_font = None
+            self.small_font = None
+            self.bold_font = None
+            self.bob_font = None
+            self.pair_number_font = None
+            self.time_font = None
 
     def create_schedule_image(self, group_name, week_number, schedules):
         """Создает изображение с расписанием"""
