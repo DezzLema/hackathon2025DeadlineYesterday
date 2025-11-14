@@ -1502,32 +1502,6 @@ async def hello(event: MessageCreated):
         await event.message.answer("❌ Ошибка при запуске")
 
 
-@dp.message_created(Command('table'))
-async def send_table_command(event: MessageCreated):
-    """Обработчик команды /table - генерирует и отправляет расписание"""
-    logging.info("🔄 Обработчик /table вызван")
-    try:
-        chat_id = event.message.recipient.chat_id
-
-        # Проверяем роль пользователя из БД
-        user_info = user_db.get_user(chat_id)
-        if not user_info or user_info[1] != "student":
-            await event.message.answer(
-                "❌ Эта команда доступна только для студентов.\n"
-                "Пожалуйста, сначала выберите роль студента с помощью команды /start"
-            )
-            return
-
-        logging.info(f"🔄 Генерирую расписание для chat_id: {chat_id}")
-        await generate_and_send_table(chat_id)
-        logging.info("✅ generate_and_send_table завершен")
-
-    except Exception as e:
-        logging.error(f"❌ Ошибка в обработчике /table: {e}")
-        import traceback
-        logging.error(f"❌ Трассировка: {traceback.format_exc()}")
-        await event.message.answer("❌ Ошибка при генерации расписания")
-
 
 @dp.message_created(Command('group'))
 async def group_command(event: MessageCreated):
@@ -1712,37 +1686,7 @@ async def search_command(event: MessageCreated):
         await event.message.answer("❌ Ошибка при поиске групп")
 
 
-@dp.message_created(Command('debug'))
-async def debug_info(event: MessageCreated):
-    """Показывает отладочную информацию"""
-    try:
-        group_name, week_number, schedules = parser.parse_group_schedule(parser.get_group_url(61))
 
-        debug_text = f"""
-🔍 *Отладочная информация:*
-
-📊 Группа: {group_name}
-📅 Неделя: {week_number}
-📚 Занятий: {len(schedules)}
-
-📋 *Расписание:*
-"""
-
-        if schedules:
-            for lesson in schedules[:10]:
-                debug_text += f"""
-{lesson['day']} {lesson['pair']} пара: {lesson['subject']}
-   Тип: {lesson['type']}
-   Преп: {lesson['teacher']}
-   Ауд: {lesson['classroom']}
-"""
-        else:
-            debug_text += "\n❌ Занятия не найдены"
-
-        await event.message.answer(debug_text)
-
-    except Exception as e:
-        await event.message.answer(f"❌ Ошибка отладки: {e}")
 
 
 @dp.message_created(Command('profile'))
@@ -1803,11 +1747,9 @@ async def help_command(event: MessageCreated):
 
     if status == "student":
         help_text += "*📚 Команды для студентов:*\n"
-        help_text += "/table - Расписание группы по умолчанию\n"
         help_text += "/group <название> - Расписание конкретной группы\n"
         help_text += "/groups - Список доступных групп\n"
         help_text += "/search <часть названия> - Поиск группы по названию\n"
-        help_text += "/debug - Отладочная информация\n\n"
         help_text += "*💡 Примеры использования:*\n"
         help_text += "`/group ИВТИИбд-32` - расписание группы ИВТИИбд-32\n"
         help_text += "`/search ИВТ` - поиск всех групп с 'ИВТ' в названии\n"
