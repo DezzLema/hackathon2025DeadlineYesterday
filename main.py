@@ -78,7 +78,6 @@ async def generate_and_send_table(chat_id, group_number=None):
         if group_number:
             group_name = parser.get_group_name(group_number)
 
-
             # Получаем информацию о части расписания
             part_id, part_data = parser.get_schedule_part_for_group(group_number)
             group_url = parser.get_group_url(group_number)
@@ -198,6 +197,7 @@ async def process_role_selection(chat_id, role):
             builder = InlineKeyboardBuilder()
             builder.row(
                 CallbackButton(text="🔙 Назад", payload="back_to_main"),
+                CallbackButton(text="📅 Получить расписание", payload="teacher_schedule")
             )
             await bot.send_message(
                 chat_id=chat_id,
@@ -226,6 +226,17 @@ async def handle_callback(event: MessageCallback):
         if payload and payload.startswith("role_"):
             role = payload.split("_")[1]
             await process_role_selection(chat_id, role)
+        elif payload == "teacher_schedule":
+            # Пока просто отправляем сообщение, что функция в разработке
+            builder = InlineKeyboardBuilder()
+            builder.row(
+                CallbackButton(text="🔙 Назад", payload="back_to_main"),
+            )
+            await bot.send_message(
+                chat_id=chat_id,
+                text="📅 Функция получения расписания для преподавателей находится в разработке.\n\nСкоро здесь можно будет получить расписание занятий преподавателя.",
+                attachments=[builder.as_markup()]
+            )
         elif payload == "student_menu":
             await send_student_menu(chat_id)
         elif payload == "student_schedule":
@@ -345,6 +356,7 @@ async def handle_callback(event: MessageCallback):
         except:
             pass
 
+
 async def send_scholarship_info(chat_id):
     """Отправляет информацию о стипендиальных выплатах"""
     try:
@@ -379,6 +391,7 @@ async def send_scholarship_info(chat_id):
         logging.error(f"❌ Ошибка при отправке информации о стипендиях: {e}")
         await bot.send_message(chat_id=chat_id, text="❌ Ошибка при загрузке информации о стипендиях")
 
+
 async def send_abiturient_info(chat_id):
     """Отправляет информацию для поступления"""
     info_text = (
@@ -409,6 +422,7 @@ async def send_abiturient_info(chat_id):
         attachments=[builder.as_markup()]
     )
 
+
 async def send_dormitory_provision_info(chat_id):
     """Отправляет информацию о предоставлении мест в общежитии"""
     provision_text = (
@@ -431,6 +445,7 @@ async def send_dormitory_provision_info(chat_id):
         text=provision_text,
         attachments=[builder.as_markup()]
     )
+
 
 async def send_dormitory_contacts_info(chat_id):
     """Отправляет контактную информацию об общежитиях"""
@@ -462,6 +477,7 @@ async def send_dormitory_contacts_info(chat_id):
         text=contacts_text,
         attachments=[builder.as_markup()]
     )
+
 
 async def send_scholarship_phd_info(chat_id):
     """Отправляет информацию о стипендиях для аспирантов с картинкой"""
@@ -523,6 +539,7 @@ async def send_scholarship_phd_info(chat_id):
             text=scholarship_text,
             attachments=[builder.as_markup()]
         )
+
 
 async def send_dormitory_info(chat_id):
     """Отправляет информацию об общежитиях с картинкой"""
@@ -594,6 +611,7 @@ async def send_dormitory_info(chat_id):
             attachments=[builder.as_markup()]
         )
 
+
 async def send_scholarship_increased_info(chat_id):
     """Отправляет информацию о повышенной стипендии с картинкой"""
     try:
@@ -655,6 +673,7 @@ async def send_scholarship_increased_info(chat_id):
             attachments=[builder.as_markup()]
         )
 
+
 async def send_student_life_info(chat_id):
     """Отправляет меню студенческой жизни"""
     try:
@@ -686,6 +705,7 @@ async def send_student_life_info(chat_id):
     except Exception as e:
         logging.error(f"❌ Ошибка при отправке меню студенческой жизни: {e}")
         await bot.send_message(chat_id=chat_id, text="❌ Ошибка при загрузке информации")
+
 
 async def send_scholarship_masters_info(chat_id):
     """Отправляет информацию о стипендиях для магистрантов с картинкой"""
@@ -748,6 +768,7 @@ async def send_scholarship_masters_info(chat_id):
             attachments=[builder.as_markup()]
         )
 
+
 async def send_scholarship_students_info(chat_id):
     """Отправляет информацию о стипендиях для студентов с картинкой"""
     try:
@@ -808,6 +829,7 @@ async def send_scholarship_students_info(chat_id):
             text=scholarship_text,
             attachments=[builder.as_markup()]
         )
+
 
 async def send_student_media_info(chat_id):
     """Отправляет информацию о студенческих медиа с картинкой"""
@@ -870,54 +892,23 @@ async def send_student_media_info(chat_id):
             attachments=[builder.as_markup()]
         )
 
+
 async def send_student_volunteer_info(chat_id):
-        """Отправляет информацию о добровольческом центре с картинкой"""
-        try:
-            volunteer_text = (
-                "🤝 *Добровольческий центр УлГТУ*\n\n"
-                "Добровольческий Центр является объединением обучающихся, осуществляющим деятельность по организации и развитию добровольческого движения в университете.\n\n"
-                "Все добровольцы – герои нашего времени, которые всегда находят время и возможность помогать тем, кто в этом нуждается. Студенты работают как на вузовских, так и на региональных мероприятиях, участвуют в конференциях и форумах, в экологических, благотворительных, донорских акциях.\n\n"
-                "Сейчас в Центре более 50 волонтеров, которые активно принимают участие в жизни нашего вуза и города. Они занимаются организацией многих масштабных мероприятий, донорством, облагораживанием территорий, пропагандой здорового образа жизни, экологическим просвещением, содействием в помощи пожилым людям, осуществлением посещений в приют для животных.\n\n"
-                "Волонтеры УлГТУ являются участниками общероссийской акции взаимопомощи #МЫВМЕСТЕ. Активисты добровольческого центра оказывают адресную помощь нуждающимся жителям города. Волонтёры могут помочь в покупке продуктов и лекарств, решении бытовых проблем.\n\n"
-                "Если ты хочешь стать частью Центра: помогать нуждающимся, организовывать благотворительные акции и мероприятия, а также участвовать в качестве волонтёра в масштабных проектах, пиши руководителю и присоединяйся к команде!"
-            )
+    """Отправляет информацию о добровольческом центре с картинкой"""
+    try:
+        volunteer_text = (
+            "🤝 *Добровольческий центр УлГТУ*\n\n"
+            "Добровольческий Центр является объединением обучающихся, осуществляющим деятельность по организации и развитию добровольческого движения в университете.\n\n"
+            "Все добровольцы – герои нашего времени, которые всегда находят время и возможность помогать тем, кто в этом нуждается. Студенты работают как на вузовских, так и на региональных мероприятиях, участвуют в конференциях и форумах, в экологических, благотворительных, донорских акциях.\n\n"
+            "Сейчас в Центре более 50 волонтеров, которые активно принимают участие в жизни нашего вуза и города. Они занимаются организацией многих масштабных мероприятий, донорством, облагораживанием территорий, пропагандой здорового образа жизни, экологическим просвещением, содействием в помощи пожилым людям, осуществлением посещений в приют для животных.\n\n"
+            "Волонтеры УлГТУ являются участниками общероссийской акции взаимопомощи #МЫВМЕСТЕ. Активисты добровольческого центра оказывают адресную помощь нуждающимся жителям города. Волонтёры могут помочь в покупке продуктов и лекарств, решении бытовых проблем.\n\n"
+            "Если ты хочешь стать частью Центра: помогать нуждающимся, организовывать благотворительные акции и мероприятия, а также участвовать в качестве волонтёра в масштабных проектах, пиши руководителю и присоединяйся к команде!"
+        )
 
-            image_path = os.path.join("assets", "13.png")
+        image_path = os.path.join("assets", "13.png")
 
-            if not os.path.exists(image_path):
-                logging.warning(f"❌ Файл {image_path} не найден")
-                builder = InlineKeyboardBuilder()
-                builder.row(
-                    CallbackButton(text="🔙 Назад", payload="student_life"),
-                )
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=volunteer_text,
-                    attachments=[builder.as_markup()]
-                )
-                return
-
-            with open(image_path, "rb") as file:
-                image_data = file.read()
-
-            input_media = InputMediaBuffer(
-                buffer=image_data,
-                filename="student_volunteer.png"
-            )
-
-            builder = InlineKeyboardBuilder()
-            builder.row(
-                CallbackButton(text="🔙 Назад", payload="student_life"),
-            )
-
-            await bot.send_message(
-                chat_id=chat_id,
-                text=volunteer_text,
-                attachments=[input_media, builder.as_markup()]
-            )
-
-        except Exception as e:
-            logging.error(f"❌ Ошибка при отправке информации о добровольческом центре: {e}")
+        if not os.path.exists(image_path):
+            logging.warning(f"❌ Файл {image_path} не найден")
             builder = InlineKeyboardBuilder()
             builder.row(
                 CallbackButton(text="🔙 Назад", payload="student_life"),
@@ -927,6 +918,39 @@ async def send_student_volunteer_info(chat_id):
                 text=volunteer_text,
                 attachments=[builder.as_markup()]
             )
+            return
+
+        with open(image_path, "rb") as file:
+            image_data = file.read()
+
+        input_media = InputMediaBuffer(
+            buffer=image_data,
+            filename="student_volunteer.png"
+        )
+
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_life"),
+        )
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=volunteer_text,
+            attachments=[input_media, builder.as_markup()]
+        )
+
+    except Exception as e:
+        logging.error(f"❌ Ошибка при отправке информации о добровольческом центре: {e}")
+        builder = InlineKeyboardBuilder()
+        builder.row(
+            CallbackButton(text="🔙 Назад", payload="student_life"),
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=volunteer_text,
+            attachments=[builder.as_markup()]
+        )
+
 
 async def send_student_teams_info(chat_id):
     """Отправляет информацию о студенческих отрядах с картинкой"""
@@ -987,6 +1011,7 @@ async def send_student_teams_info(chat_id):
             attachments=[builder.as_markup()]
         )
 
+
 async def send_abiturient_chats(chat_id):
     """Отправляет информацию о чатах факультетов"""
     chats_text = (
@@ -1013,6 +1038,7 @@ async def send_abiturient_chats(chat_id):
         text=chats_text,
         attachments=[builder.as_markup()]
     )
+
 
 async def send_career_center_info(chat_id):
     """Отправляет информацию о центре карьеры с картинкой"""
@@ -1070,6 +1096,7 @@ async def send_career_center_info(chat_id):
             text=career_text,
             attachments=[builder.as_markup()]
         )
+
 
 async def send_student_menu(chat_id):
     """Отправляет меню для студентов с восемью кнопками"""
@@ -1289,6 +1316,7 @@ async def send_profkom_contacts_info(chat_id):
         attachments=[builder.as_markup()]
     )
 
+
 async def send_scholarship_college_info(chat_id):
     """Отправляет информацию о стипендиях для колледжей с картинкой"""
     try:
@@ -1349,6 +1377,7 @@ async def send_scholarship_college_info(chat_id):
             text=scholarship_text,
             attachments=[builder.as_markup()]
         )
+
 
 async def send_profkom_payments_info(chat_id):
     """Отправляет информацию о выплатах профкома с картинкой"""
@@ -1502,7 +1531,6 @@ async def hello(event: MessageCreated):
         await event.message.answer("❌ Ошибка при запуске")
 
 
-
 @dp.message_created(Command('group'))
 async def group_command(event: MessageCreated):
     """Обработчик команды /group <название> - расписание конкретной группы"""
@@ -1541,8 +1569,6 @@ async def group_command(event: MessageCreated):
             )
             return
 
-
-
         # Ищем группу по названию
         group_number = parser.find_group_number(group_name)
 
@@ -1551,7 +1577,6 @@ async def group_command(event: MessageCreated):
 
             # СОХРАНЯЕМ ГРУППУ В БАЗУ ДАННЫХ
             user_db.update_user_group(chat_id, found_group_name)
-
 
             await generate_and_send_table(chat_id, group_number)
         else:
@@ -1684,9 +1709,6 @@ async def search_command(event: MessageCreated):
     except Exception as e:
         logging.error(f"❌ Ошибка в обработчике /search: {e}")
         await event.message.answer("❌ Ошибка при поиске групп")
-
-
-
 
 
 @dp.message_created(Command('profile'))
