@@ -466,7 +466,7 @@ class UlstuParser:
 
             week_number = "1"
 
-            # Поиск номера недели (аналогично групповому расписанию)
+            # Поиск номера недели
             week_elements = soup.find_all('font', {'color': '#ff00ff', 'face': 'Times New Roman', 'size': '6'})
             for element in week_elements:
                 text = element.get_text(strip=True)
@@ -505,7 +505,8 @@ class UlstuParser:
                     rows = table.find_all("tr")
                     logging.info(f"🔍 Найдено строк в таблице преподавателя: {len(rows)}")
 
-                    for row_idx in range(2, min(len(rows), 8)):
+                    # Проходим по строкам (дням недели)
+                    for row_idx in range(2, min(len(rows), 8)):  # Строки с 3 по 8 (дни недели)
                         row = rows[row_idx]
                         cells = row.find_all(["td", "th"])
 
@@ -514,12 +515,16 @@ class UlstuParser:
 
                         day_name = day_names[row_idx - 2] if (row_idx - 2) < len(day_names) else f"День{row_idx - 1}"
 
-                        for cell_idx in range(1, min(len(cells), 9)):
+                        # Проходим по ячейкам (парам)
+                        for cell_idx in range(1, min(len(cells), 9)):  # Ячейки с 2 по 9 (пары)
                             cell = cells[cell_idx]
                             pair_number = cell_idx
                             cell_text = cell.get_text(separator='\n', strip=True)
 
                             if cell_text and cell_text not in ['', '-', ' ']:
+                                logging.info(f"🔍 Анализирую ячейку: {day_name} {pair_number} пара")
+                                logging.info(f"🔍 Содержимое ячейки: {cell_text}")
+
                                 lesson_data = self._parse_teacher_cell_content(cell_text)
                                 if lesson_data:
                                     schedule_item = {
@@ -528,14 +533,15 @@ class UlstuParser:
                                         'pair': pair_number,
                                         'subject': lesson_data['subject'],
                                         'type': lesson_data['type'],
-                                        'group': lesson_data['group'],  # Вместо teacher теперь group
+                                        'group': lesson_data['group'],
                                         'classroom': lesson_data['classroom']
                                     }
                                     schedules.append(schedule_item)
                                     logging.info(
-                                        f"✅ {day_name} {pair_number} пара - {lesson_data['subject']} для {lesson_data['group']}")
+                                        f"✅ {day_name} {pair_number} пара - {lesson_data['subject']} ({lesson_data['type']}) для {lesson_data['group']} в {lesson_data['classroom']}")
 
                     if schedules:
+                        logging.info(f"✅ Найдено занятий в таблице: {len(schedules)}")
                         break
 
             logging.info(f"📊 Итог преподавателя: {len(schedules)} занятий для {teacher_name}, неделя {week_number}")
@@ -554,59 +560,109 @@ class UlstuParser:
             if not lines:
                 return None
 
-            first_line = lines[0].lower()
+            # Первая строка - предмет и тип занятия
+            first_line = lines[0]
 
-            lesson_type = "Лекция"
-            if 'пр.' in first_line or 'практ' in first_line:
-                lesson_type = "Практика"
-            elif 'лаб.' in first_line or 'лабор' in first_line:
-                lesson_type = "Лабораторная"
-            elif 'сем.' in first_line:
-                lesson_type = "Семинар"
-            elif 'зач.' in first_line:
-                lesson_type = "Зачёт"
-            elif 'экз.' in first_line:
-                lesson_type = "Экзамен"
+            # Определяем тип занятия по первой строке
+            lesson_type = "Не указано"  # меняем значение по умолчанию
+            subject = first_line
 
-            subject = lines[0]
-            for abbrev in ['лек.', 'пр.', 'лаб.', 'сем.', 'зач.', 'экз.']:
-                if abbrev in subject.lower():
-                    subject = subject.lower().replace(abbrev, '').strip().capitalize()
+            # Более точные паттерны для определения типа занятия
+            type_patterns = {
+                r'^лек\.?\s*': 'Лекция',
+                r'^пр\.?\s*': 'Практика',
+                r'^лаб\.?\s*': 'Лабораторная',
+                r'^сем\.?\s*': 'Семинар',
+                r'^зач\.?\s*': 'Зачёт',
+                r'^экз\.?\s*': 'Экзамен',
+                r'\bлекция\b': 'Лекция',
+                r'\bпрактика\b': 'Практика',
+                r'\bлабораторная\b': 'Лабораторная',
+                r'\bсеминар\b': 'Семинар',
+                r'\bзачёт\b': 'Зачёт',
+                r'\bэкзамен\b': 'Экзамен'
+            }
+
+            # Сначала ищем точное совпадение в начале строки
+            found_type = False
+            for pattern, lesson_type_name in type_patterns.items():
+                match = re.search(pattern, first_line.lower())
+                if match:
+                    lesson_type = lesson_type_name
+                    # Удаляем найденный тип из названия предмета
+                    subject = re.sub(pattern, '', first_line, flags=re.IGNORECASE).strip()
+                    found_type = True
                     break
+
+            # Если тип не найден в начале, ищем в любом месте строки
+            if not found_type:
+                for pattern, lesson_type_name in type_patterns.items():
+                    if re.search(pattern, first_line.lower()):
+                        lesson_type = lesson_type_name
+                        # Удаляем тип из любого места в строке
+                        subject = re.sub(pattern, '', first_line, flags=re.IGNORECASE).strip()
+                        break
+
+            # Если тип всё ещё не определён, анализируем по ключевым словам в предмете
+            if lesson_type == "Не указано":
+                subject_lower = subject.lower()
+                if any(word in subject_lower for word in ['программирование', 'математика', 'физика', 'химия']):
+                    lesson_type = "Лекция"
+                elif any(word in subject_lower for word in ['упражнен', 'решен', 'задач']):
+                    lesson_type = "Практика"
+                elif any(word in subject_lower for word in ['лабор', 'опыт', 'эксперимент']):
+                    lesson_type = "Лабораторная"
 
             group = "Не указана"
             classroom = "Не указана"
 
-            # Для преподавателя ищем группу во второй строке
-            if len(lines) > 1:
-                group_line = lines[1]
+            # Анализируем остальные строки для поиска группы и аудитории
+            remaining_lines = lines[1:] if len(lines) > 1 else []
 
-                # Пытаемся найти название группы (формат: АБВ-11, ИВТИИбд-32 и т.д.)
-                group_match = re.search(r'([А-ЯЁ]{2,}[-–]\d+[а-я]*)', group_line)
-                if group_match:
+            for line in remaining_lines:
+                # Пропускаем пустые строки
+                if not line.strip():
+                    continue
+
+                # Пытаемся найти группу (формат: АБВ-11, ИВТИИбд-32 и т.д.)
+                group_match = re.search(r'([А-ЯЁ]{2,}[-–]\d+[а-я]*)', line)
+                if group_match and group == "Не указана":
                     group = group_match.group(1)
-                    # Остаток строки - возможно, аудитория
-                    remaining_text = group_line.replace(group, '').strip()
-                    if remaining_text:
-                        classroom_match = re.search(r'(\d+[\-_][\dА-ЯA-Z]+|\d+\s*-\s*ДОТ|\d+_ДОТ|\d+\s*ДОТ)',
-                                                    remaining_text)
-                        if classroom_match:
-                            classroom = f"ауд. {classroom_match.group(1)}"
-                        elif 'ауд.' in remaining_text.lower():
-                            classroom = remaining_text
-                else:
-                    # Если группы нет, возможно это аудитория
-                    classroom_match = re.search(r'ауд\.?\s*([^\s,\n]+)', group_line, re.IGNORECASE)
-                    if classroom_match:
-                        classroom = f"ауд. {classroom_match.group(1)}"
-                    else:
-                        group = group_line  # Если не нашли группу и аудиторию, используем всю строку как группу
+                    # Убираем найденную группу из строки для поиска аудитории
+                    line_without_group = line.replace(group, '').strip()
 
-            if len(lines) > 2 and classroom == "Не указана":
-                third_line = lines[2]
-                classroom_match = re.search(r'ауд\.?\s*([^\s,\n]+)', third_line, re.IGNORECASE)
-                if classroom_match:
-                    classroom = f"ауд. {classroom_match.group(1)}"
+                    # Ищем аудиторию в оставшемся тексте
+                    classroom_match = self._find_classroom_in_text(line_without_group)
+                    if classroom_match:
+                        classroom = classroom_match
+                    continue
+
+                # Если группа не найдена в этом паттерне, проверяем другие форматы
+                if group == "Не указана":
+                    # Проверяем короткие обозначения групп
+                    short_group_match = re.search(r'([А-ЯЁ]{1,3}[-–]\d+)', line)
+                    if short_group_match:
+                        group = short_group_match.group(1)
+                        line_without_group = line.replace(group, '').strip()
+                        classroom_match = self._find_classroom_in_text(line_without_group)
+                        if classroom_match:
+                            classroom = classroom_match
+                        continue
+
+                # Если группа всё ещё не найдена и строка не похожа на аудиторию, используем её как группу
+                if group == "Не указана" and not self._looks_like_classroom(line):
+                    group = line
+                    continue
+
+                # Ищем аудиторию
+                if classroom == "Не указана":
+                    classroom_match = self._find_classroom_in_text(line)
+                    if classroom_match:
+                        classroom = classroom_match
+
+            # Если после анализа всех строк группа не найдена, но есть вторая строка, используем её
+            if group == "Не указана" and len(lines) > 1 and not self._looks_like_classroom(lines[1]):
+                group = lines[1]
 
             return {
                 'subject': subject if subject else "Не указано",
@@ -617,6 +673,73 @@ class UlstuParser:
 
         except Exception as e:
             logging.error(f"❌ Ошибка парсинга ячейки преподавателя: {e}")
+            import traceback
+            logging.error(f"❌ Трассировка: {traceback.format_exc()}")
+            return None
+
+    def _looks_like_classroom(self, text):
+        """Проверяет, похож ли текст на описание аудитории"""
+        classroom_indicators = [
+            'ауд.', 'аудитория', 'ком.', 'комната',
+            'корп.', 'корпус', 'здание', 'каб.', 'кабинет'
+        ]
+
+        text_lower = text.lower()
+
+        # Если содержит указатели аудитории
+        if any(indicator in text_lower for indicator in classroom_indicators):
+            return True
+
+        # Если соответствует паттерну номера аудитории
+        classroom_patterns = [
+            r'\d+[\-_]\d+',
+            r'\d+[-–][А-ЯA-Z]',
+            r'\d+[А-ЯA-Z]',
+            r'\d+\s*-\s*ДОТ',
+            r'\d+_ДОТ'
+        ]
+
+        for pattern in classroom_patterns:
+            if re.search(pattern, text):
+                return True
+
+        return False
+
+    def _find_classroom_in_text(self, text):
+        """Ищет информацию об аудитории в тексте"""
+        try:
+            # Паттерны для аудиторий (в порядке приоритета)
+            patterns = [
+                r'ауд\.?\s*([^\s,\n]+)',  # ауд. 123
+                r'аудитория\s*([^\s,\n]+)',  # аудитория 123
+                r'каб\.?\s*([^\s,\n]+)',  # каб. 123
+                r'ком\.?\s*([^\s,\n]+)',  # ком. 123
+                r'(\d+[\-_][\dА-ЯA-Zа-яa-z]+)',  # 3-312, 3_2, 6-НБ8
+                r'(\d+\s*-\s*ДОТ)',  # 3-ДОТ
+                r'(\d+_ДОТ)',  # 3_ДОТ
+                r'(\d+\s*ДОТ)',  # 3 ДОТ
+                r'корп\.?\s*(\d+)[\s\-]*([^\s,\n]*)'  # корп. 3-123
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    if 'корп' in pattern:
+                        # Обработка корпуса и номера аудитории
+                        building = match.group(1)
+                        room = match.group(2) if len(match.groups()) > 1 else ''
+                        if room:
+                            classroom = f"корп. {building}-{room}"
+                        else:
+                            classroom = f"корп. {building}"
+                    else:
+                        classroom = match.group(1).replace(' ', '')
+                        classroom = f"ауд. {classroom.upper()}"
+                    return classroom
+
+            return None
+        except Exception as e:
+            logging.error(f"❌ Ошибка поиска аудитории: {e}")
             return None
 
     def get_teacher_schedule_image(self, teacher_url):

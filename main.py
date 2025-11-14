@@ -1889,14 +1889,11 @@ async def handle_message(event: MessageCreated):
                 return
 
             # Ищем преподавателя по фамилии
-            await event.message.answer(f"🔍 Ищу преподавателя: {text}")
-
             teacher_number = parser.find_teacher_number(text)
 
             if teacher_number:
                 teacher_name = parser.get_teacher_name(teacher_number)
                 await event.message.answer(
-                    f"✅ Найден преподаватель: {teacher_name}\n"
                     f"🔄 Загружаю расписание..."
                 )
 
