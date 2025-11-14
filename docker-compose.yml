@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   bot:
-    build: .
+    build: docker
     container_name: digital_university_bot
     restart: unless-stopped
     volumes:
