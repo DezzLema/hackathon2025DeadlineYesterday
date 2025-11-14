@@ -35,8 +35,9 @@ class ScheduleService:
             os.makedirs(SCHEDULE_DIR)
 
     async def send_table_image(self, bot, chat_id):
-        """Отправляет существующий PNG файл с расписанием в чат"""
+        """Отправляет существующий PNG файл с расписанием в чат и удаляет его после отправки"""
         logging.info("🔍 Начало send_table_image")
+        schedule_path = None
         try:
             schedule_path = os.path.join(SCHEDULE_DIR, "schedule.png")
             if not os.path.exists(schedule_path):
@@ -68,9 +69,13 @@ class ScheduleService:
         except Exception as e:
             logging.error(f"❌ Ошибка в send_table_image: {e}")
             await bot.send_message(chat_id=chat_id, text="❌ Ошибка при отправке расписания")
+        finally:
+            # Всегда очищаем файлы после отправки
+            self._cleanup_schedule_files(schedule_path)
 
     async def generate_and_send_table(self, bot, chat_id, group_number=None):
-        """Генерирует расписание и отправляет его в чат"""
+        """Генерирует расписание и отправляет его в чат, затем удаляет файл"""
+        file_path = None
         try:
             if group_number:
                 group_name = self.parser.get_group_name(group_number)
@@ -106,14 +111,15 @@ class ScheduleService:
                 attachments=[input_media, builder.as_markup()]
             )
 
-            logging.info(f"✅ Расписание сгенерировано и сохранено в {file_path}")
+            logging.info(f"✅ Расписание сгенерировано и отправлено")
 
         except Exception as e:
             logging.error(f"❌ Ошибка при генерации расписания: {e}")
             await bot.send_message(chat_id=chat_id, text="❌ Ошибка при генерации расписания")
-
-    # Добавьте здесь остальные методы для работы с расписанием...
-    # send_scholarship_info, send_dormitory_info, send_profkom_info и т.д.
+        finally:
+            # Всегда очищаем файл после отправки
+            if file_path and os.path.exists(file_path):
+                self._cleanup_schedule_files(file_path)
 
     async def handle_group_command(self, bot, chat_id, group_name):
         """Обработка команды /group"""
@@ -398,6 +404,7 @@ class ScheduleService:
                 text=f"🔄 Загружаю расписание..."
             )
 
+            file_path = None
             try:
                 # Получаем и отправляем расписание преподавателя
                 teacher_url = self.parser.get_teacher_url(teacher_number)
@@ -437,6 +444,10 @@ class ScheduleService:
                     text=f"❌ Ошибка при загрузке расписания преподавателя {teacher_name}\n"
                          f"Попробуйте позже или обратитесь к администратору"
                 )
+            finally:
+                # Очищаем файл после отправки
+                if file_path and os.path.exists(file_path):
+                    self._cleanup_schedule_files(file_path)
         else:
             await bot.send_message(
                 chat_id=chat_id,
@@ -1421,3 +1432,19 @@ class ScheduleService:
                 text=teams_text,
                 attachments=[builder.as_markup()]
             )
+
+    def _cleanup_schedule_files(self, file_path=None):
+        """Очищает файлы расписания"""
+        try:
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+                logging.info(f"🗑️ Удален файл: {file_path}")
+            else:
+                # Удаляем все PNG файлы в папке schedule
+                for filename in os.listdir(SCHEDULE_DIR):
+                    if filename.endswith('.png'):
+                        file_path = os.path.join(SCHEDULE_DIR, filename)
+                        os.remove(file_path)
+                        logging.info(f"🗑️ Удален файл: {file_path}")
+        except Exception as e:
+            logging.error(f"❌ Ошибка при удалении файлов: {e}")
