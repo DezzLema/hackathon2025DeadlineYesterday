@@ -6,6 +6,11 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
+# Настройка UTF-8 кодировки
+ENV PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
 # Создание рабочей директории
 WORKDIR /app
 
@@ -16,7 +21,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Копирование исходного кода
-COPY docker .
+COPY . .
 
 # Создание необходимых директорий
 RUN mkdir -p schedule assets database
