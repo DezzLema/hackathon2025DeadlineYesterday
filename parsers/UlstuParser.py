@@ -454,16 +454,42 @@ class UlstuParser:
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Извлекаем имя преподавателя из заголовка
+            # Ищем имя преподавателя - более прямой подход
             teacher_name = "Неизвестный преподаватель"
-            title_elements = soup.find_all('font', {'size': '6'})
-            for element in title_elements:
+
+            # Ищем все элементы с розовым цветом (#ff00ff)
+            pink_elements = soup.find_all('font', {'color': '#ff00ff'})
+
+            for element in pink_elements:
                 text = element.get_text(strip=True)
-                if text and "расписание" in text.lower():
-                    name_match = re.search(r'расписание\s+преподавателя\s+(.+)', text, re.IGNORECASE)
-                    if name_match:
-                        teacher_name = name_match.group(1).strip()
-                    break
+                logging.info(f"🔍 Анализируем розовый текст: {text}")
+
+                # Пропускаем пустые тексты
+                if not text:
+                    continue
+
+                # Ищем текст, который содержит имя (должен быть перед "Неделя:")
+                if 'Неделя:' in text:
+                    # Разделяем текст по "Неделя:" и берем первую часть
+                    name_part = text.split('Неделя:')[0].strip()
+                    if name_part and len(name_part) > 1:  # Проверяем, что это не пустая строка
+                        teacher_name = name_part
+                        logging.info(f"✅ Найдено имя преподавателя: {teacher_name}")
+                        break
+
+            # Если не нашли через розовый текст, пробуем альтернативные методы
+            if teacher_name == "Неизвестный преподаватель":
+                # Ищем в заголовках
+                headers = soup.find_all(['h1', 'h2', 'h3', 'font'])
+                for header in headers:
+                    text = header.get_text(strip=True)
+                    if 'расписание' in text.lower() and 'преподавателя' in text.lower():
+                        # Пытаемся извлечь имя после "преподавателя"
+                        match = re.search(r'преподавателя\s+(.+)', text, re.IGNORECASE)
+                        if match:
+                            teacher_name = match.group(1).strip()
+                            logging.info(f"✅ Найдено имя преподавателя из заголовка: {teacher_name}")
+                            break
 
             week_number = "1"
 
@@ -478,6 +504,18 @@ class UlstuParser:
                         logging.info(f"📅 Найдена неделя преподавателя: {week_number}")
                     break
 
+            # Если не нашли неделю в специфичных элементах, ищем в любых розовых
+            if week_number == "1":
+                for element in pink_elements:
+                    text = element.get_text(strip=True)
+                    if 'Неделя:' in text:
+                        week_match = re.search(r'Неделя:\s*(\d+)-я', text)
+                        if week_match:
+                            week_number = week_match.group(1)
+                            logging.info(f"📅 Найдена неделя в розовом тексте: {week_number}")
+                            break
+
+            # Остальной код парсинга таблиц остается без изменений...
             # Поиск таблиц расписания
             tables = soup.find_all("table", {"border": "1"})
             if not tables:
@@ -517,7 +555,7 @@ class UlstuParser:
                         day_name = day_names[row_idx - 2]
 
                         # Проходим по ячейкам (парам)
-                        for cell_idx in range(1, min(len(cells), 9)):  # пары 1–8
+                        for cell_idx in range(1, min(len(cells), 9)):  # пары 1-8
                             cell = cells[cell_idx]
                             pair_number = cell_idx
                             cell_text = cell.get_text(separator='\n', strip=True)
@@ -558,7 +596,7 @@ class UlstuParser:
                             'classroom': ""
                         })
 
-            logging.info(f"📊 Итог преподавателя: {len(full_schedule)} ячеек.")
+            logging.info(f"📊 Итог преподавателя {teacher_name}: {len(full_schedule)} ячеек, неделя {week_number}")
             return teacher_name, week_number, full_schedule
 
         except Exception as e:
